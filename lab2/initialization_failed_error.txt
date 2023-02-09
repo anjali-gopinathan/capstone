@@ -1,0 +1,6 @@
+C:\Users\Anjali\Documents\Spring2023\ee459capstone\lab2>make flash
+avrdude -c usbtiny -P usb -p atmega328p -U flash:w:main.hex:i
+avrdude: initialization failed, rc=-1
+Double check connections and try again, or use -F to override this check.
+avrdude done.  Thank you.
+make: *** [flash] Error 1
