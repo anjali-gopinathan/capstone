@@ -73,7 +73,7 @@ int main(void)
     DDRD |= 1 << DDD5;
     DDRD |= 1 << DDD6;
     DDRD |= 1 << DDD7;
-    const int my_delay_ms = 100;
+    const int my_delay_ms = 1;
     while (1) {
       //setting trigger pin
       PORTC |= 1 << PC0;      // Set PC0 to a 1
@@ -126,7 +126,7 @@ int main(void)
       _delay_ms(my_delay_ms);
       
       //set and clear IO pin PB2
-      PORTB |= 1 << PC5;
+      PORTB |= 1 << PC2 ;
       _delay_ms(my_delay_ms);
       PORTB &= ~(1 << PC2);
       _delay_ms(my_delay_ms);
