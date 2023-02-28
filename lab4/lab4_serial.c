@@ -1,23 +1,3 @@
-/*************************************************************
-*       at328-0.c - Demonstrate simple I/O functions of ATmega328
-*
-*       Program loops turning PC0 on and off as fast as possible.
-*
-* The program should generate code in the loop consisting of
-*   LOOP:   SBI  PORTC,0        (2 cycles)
-*           CBI  PORTC,0        (2 cycles)
-*           RJMP LOOP           (2 cycles)
-*
-* PC0 will be low for 4 / XTAL freq
-* PC0 will be high for 2 / XTAL freq
-* A 9.8304MHz clock gives a loop period of about 600 nanoseconds.
-*
-* Revision History
-* Date     Author      Description
-* 09/14/12 A. Weber    Initial Release
-* 11/18/13 A. Weber    Renamed for ATmega328P
-*************************************************************/
-
 #include <avr/io.h>
 #include <util/delay.h>
 #include <stdio.h>
@@ -28,10 +8,9 @@ EE 459Lx, Rev. 6/3/2022 5
 */
 void serial_init(unsigned short ubrr){
   UBRR0 = ubrr ; // Set baud rate
-  UCSR0B |= (1 << TXEN0 ); // Turn on transmitter
-  UCSR0B |= (1 << RXEN0 ); // Turn on receiver
-  UCSR0C = (3 << UCSZ00 ); // Set for async . operation , no parity ,
-  // one stop bit , 8 data bits
+  UCSR0B |= (1 << TXEN0 );  // Turn on transmitter
+  UCSR0B |= (1 << RXEN0 );  // Turn on receiver
+  UCSR0C = (3 << UCSZ00 );  // Set for async . operation , no parity , one stop bit , 8 data bits
 }
 
 /*
@@ -44,13 +23,13 @@ void serial_out(char ch){
 
 
 /*
-  sci_outs - Print the contents of the character string "s" out the SCI
+  serial_stringout - Print the contents of the character string "s" out the SCI
   port. The string must be terminated by a zero byte.
 */
-void sci_outs(char *s){
-  char ch;
-  while((ch = *s++) != '\0') {
-    serial_out(ch);
+void serial_stringout(char *s){
+  int i=0;
+  while(s[i] != '\0'){
+    serial_out(s[i++]);
   }
 }
 
@@ -65,29 +44,25 @@ char serial_in()
 
 int main(void)
 {
-  serial_init (9600);
-  DDRC |= 1 << DDC0;          // Set PORTC bit 0 for output
+  unsigned short ubrr = ( ( 9830400 / 16 ) / 9600) - 1; 
+  serial_init(ubrr); 
+  _delay_ms(100);         // delay 0.1 seconds
 
-  char serialSend[48];
   while (1) {
-    PORTC |= 1 << PC0;      // Set PC0 to a 1 (light up led)
     char c = serial_in();   //received something!
-  	PORTC &= ~(1 << PC0);   // Set PC0 to a 0
-    _delay_ms(100);         // turn off led for 0.1 seconds
-    PORTC |= 1 << PC0;      // Set PC0 to a 1 (light up led)
-
-    if( c == 'a' ||
-        c == 'e' ||
-        c == 'i' ||
-        c == 'o' ||
-        c == 'u'   
+    char buf[32];
+    if( (c == 'a') ||
+        (c == 'e') ||
+        (c == 'i') ||
+        (c == 'o') ||
+        (c == 'u')   
     ){  
-      sprintf(serialSend, "You entered the vowel \"%c\"\r\n", c);
+      snprintf(buf, 32, "You entered the vowel '%c'\r\n", c);
     }
     else{
-      sprintf(serialSend, "That was the consonant \"%c\"\r\n", c);
+      snprintf(buf, 32, "That was the consonant '%c'\r\n", c);
     }
-    sci_outs(serialSend);
+    serial_stringout(buf);
   }
   return 0;   /* never reached */
 }
