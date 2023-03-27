@@ -1,80 +1,115 @@
 #include <avr/io.h>
 #include <util/delay.h>
+#include <util/twi.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
-#include "TSL2591.h"
 
 #define TCAADDR 0x70        // address for MUX
-#define LS_TSLADDR 0x29     // address for Light sensor (TSL)
+#define TSL2591_ADDR 0x29     // address for Light sensor (TSL)
 /* Assign a unique ID to this sensor at the same time */
-TSL2591 out_ls0 = {1};  // outside light sensor is on sda/scl 0
-TSL2591 in_ls1  = {2};  //  inside light sensor is on sda/scl 1
+// Adafruit_TSL2591 out_ls0 = {1};  // outside light sensor is on sda/scl 0
+// Adafruit_TSL2591 in_ls1  = {2};  //  inside light sensor is on sda/scl 1
 
 void i2c_init(uint8_t);
 uint8_t i2c_io(uint8_t, uint8_t *, uint16_t,
                uint8_t *, uint16_t, uint8_t *, uint16_t);
+void mux_start(uint8_t);
+void mux_write(uint8_t);
+void mux_stop();
+uint16_t tsl_read_register(uint8_t reg);
+float calculate_lux(uint16_t ch0_data, uint16_t ch1_data);
 
 // Find divisors for the UART0 and I2C baud rates
 #define FOSC 9830400            // Clock frequency = Oscillator freq.
 #define BAUD 9600               // UART0 baud rate
 // #define MYUBRR FOSC/16/BAUD-1   // Value for UBRR0 register
-#define BDIV (FOSC / 100000 - 16) / 2 + 1    // Puts I2C rate just below 100kHz
+#define BDIV ((FOSC / 100000 - 16) / 2 + 1   ) // Puts I2C rate just below 100kHz
 
-// adapted from function at  https://learn.adafruit.com/adafruit-tca9548a-1-to-8-i2c-multiplexer-breakout/arduino-wiring-and-test
-void displaySensorDetails(TSL2591 *light)
-{
-    sensor_t sensor;
-    TSL2591_getSensor(light, &sensor);
-    printf("------------------------------------\n");
-    printf("Sensor:       %s\n", sensor.name);
-    printf("Driver Ver:   %d\n", sensor.version);
-    printf("Unique ID:    %d\n", sensor.sensor_id);
-    printf("Max Value:    %f Lux\n", sensor.max_value);
-    printf("Min Value:    %f Lux\n", sensor.min_value);
-    printf("Resolution:   %f Lux\n", sensor.resolution);
-    printf("------------------------------------\n");
-    printf("\n");
-    usleep(500000);
-}
 int main(void){
     i2c_init(BDIV);             // Initialize the I2C port
     // if light sensor senses BRIGHT, light LED
     DDRC |= 1 << DDC0;          // Set PORTC bit 0 (pin 23, green led) for output
+    PORTC &= ~(1 << PC0);   // Set PC0 to a 0
+
     printf("TSL2591 Light Sensor Test\n\n");
     // scan MUX for i2c addresses
 
     /* Initialise the 1st sensor */
-    mux_select(0);
-    if (!TSL2591_begin(&out_ls0))
-    {
-        /* There was a problem detecting the TSL2591 ... check your connections */
-        printf("Oops, no TSL2591 detected for OUTSIDE light sensor... Check your wiring!\n");
-        while (1)
-            ;
-    }
-    mux_select(1);
-    if (!TSL2591_begin(&in_ls1))
-    {
-        /* There was a problem detecting the TSL2591 ... check your connections */
-        printf("Oops, no TSL2591 detected for INSIDE light sensor... Check your wiring!\n");
-        while (1)
-            ;
-    }
-    // for(int i=0; i<2; i++){
-    //     mux_select(i);
-    // }
     
-    /* Display some basic information on this sensor */
-    printf("selecting OUTSIDE light sensor (sda/scl 0)...\n");
-    tcaselect(0);
-    displaySensorDetails(&out_ls0);
-    
-    printf("\nselecting INSIDE light sensor (sda/scl 1)...\n");
-    tcaselect(1);
-    displaySensorDetails(&in_ls1);
+    _delay_ms(100);
+    uint8_t channel;
+    for (channel = 0; channel < 2; channel++) {
+        mux_start(channel);
+        mux_write((TCAADDR << 1) | TW_WRITE);
+        mux_write(1 << channel);
+        mux_stop();       
 
+        mux_start(channel);
+        mux_write((TCAADDR << 1) | TW_WRITE);
+        mux_write(0x80 | 0x00); // COMMAND | ENABLE register
+        mux_write(0x01 | 0x02); // Power ON and ALS enable
+        mux_stop();        
+        _delay_ms(100);
+        //printf("Address for channel 0: %f Lux\n", event.light);
+
+    }
+    /* Display some basic information on this sensor */
+    // printf("selecting OUTSIDE light sensor (sda/scl 0)...\n");
+    // mux_select(0);
+    
+    // printf("\nselecting INSIDE light sensor (sda/scl 1)...\n");
+    // mux_select(1);
+        
+    uint16_t visibleLight_0 = 0;
+    uint16_t visibleLight_1 = 0;
     while (1) {
+        PORTC &= ~(1 << PC0);   // Set PC0 to a 0
+
+        for (channel = 0; channel < 2; channel++) {
+            //select channel
+            mux_start(channel);
+            mux_write((TCAADDR << 1) | TW_WRITE);
+            mux_write(1 << channel);
+            mux_stop(); 
+            
+            // get channel data
+            uint16_t ch0_data = tsl_read_register(0x14);
+            uint16_t ch1_data = tsl_read_register(0x16);
+            // Combine the lower and upper bytes to obtain the 16-bit values
+            ch0_data |= (tsl_read_register(0x15) << 8); // CH0 upper byte
+            ch1_data |= (tsl_read_register(0x17) << 8); // CH1 upper byte
+            // 0 to 65535 (2^16 - 1)
+            if(channel == 0){
+                visibleLight_0 = ch0_data - ch1_data;   // call a function to fix this
+                printf("Sensor %d - CH0: %d, CH1: %d, visibleLight0 = %d\n", channel, ch0_data, ch1_data, visibleLight_0);
+            }
+            else{
+                visibleLight_1 = ch0_data - ch1_data; 
+                printf("Sensor %d - CH0: %d, CH1: %d, visibleLight1 = %d\n", channel, ch0_data, ch1_data, visibleLight_1);
+            }
+
+        }
+
+        if(visibleLight_0 >= visibleLight_1){
+            //set LED on
+            PORTC |= 1 << PC0;      // Set PC0 to a 1
+        }
+        else{
+            //set LED off
+            PORTC &= ~(1 << PC0);   // Set PC0 to a 0
+
+        }
+        // uint16_t als_data = 0;
+        // mux_start(0);
+        // mux_write((TSL2591_ADDR << 1) | TW_WRITE);
+        // mux_write(0x80 | 0x20 | reg); // COMMAND | DATA register
+        // mux_start(0);
+        // mux_write((TSL2591_ADDR << 1) | TW_READ);
+        // als_data = TWDR;
+        // mux_stop();
+        // printf("OUTSIDE sensor illuminance: %f Lux\n", event.light);
+        
         // PORTC |= 1 << PC0;      // Set PC0 to a 1
         // _delay_ms(1000);
         // PORTC &= ~(1 << PC0);   // Set PC0 to a 0
@@ -82,21 +117,21 @@ int main(void){
         /*
         figure out the different addresses 
         */
+        // mux_select(0);
+        // getEvent(&out_ls0, &event);
 
-        if((/*LS0 port and address*/) == /*some value that equates to BRIGHT*/){
-            // turn ON LED
-            PORTC |= 1 << PC0;      // Set PC0 to a 1
-        }
-        else{   // in this case LS0 is in some range that equates to DARK
+        // mux_select(1);
+        // getEvent(&in_ls1, &event);
+        // printf("INSIDE sensor illuminance: %f Lux\n", event.light);
+        
+        _delay_ms(500);
+        // if((/*LS0 port and address*/) == /*some value that equates to BRIGHT*/){
+        //     // turn ON LED
+        //     PORTC |= 1 << PC0;      // Set PC0 to a 1
+        // }
+        // else{   // in this case LS0 is in some range that equates to DARK
 
-        }
-        if((/*LS1 port and address*/) == /*some value that equates to BRIGHT*/){
-            // turn ON LED
-            PORTC |= 1 << PC0;      // Set PC0 to a 1
-        }
-        else{   // in this case LS0 is in some range that equates to DARK
-
-        }
+        // }
     }
 
     
@@ -284,27 +319,65 @@ void i2c_init(uint8_t bdiv)
     TWBR = bdiv;                        // Set bit rate register
 }
 
-void mux_select(uint8_t i)
+void mux_start(uint8_t i)
 {
-    if (i>7) {
+    if (i>7 ) {
         return;
     }
     
     // Start I2C transmission (on TCAADDR)
     TWCR = (1 << TWINT) | (1 << TWSTA) | (1 << TWEN);
-    while (!(TWCR & (1 << TWINT))) // Wait for TWINT to be set
+    while (!(TWCR & (1 << TWINT))); // Wait for TWINT to be set
     
-    TWDR = TCAADDR // Load mux address 
-    TWCR = (1 << TWINT) | (1 << TWEN);  // Start transmission
-    while (!(TWCR & (1 << TWINT)));     // Wait for TWINT to be set
-
+    // TWDR = TCAADDR // Load mux address 
+    // TWCR = (1 << TWINT) | (1 << TWEN);  // Start transmission
+    // while (!(TWCR & (1 << TWINT)));     // Wait for TWINT to be set
+}
+void mux_write(uint8_t i)
+{
     // Write to address i
     TWDR = 1 << i; // Load i address 
+    // TWDR = i;    // maybe set TWDR to the address instead of shifted?
     TWCR = (1 << TWINT) | (1 << TWEN);  // Start transmission
     while (!(TWCR & (1 << TWINT)));     // Wait for TWINT to be set
-    
-    // Stop I2C transmission
-    TWCR = (1 << TWINT) | (1 << TWEN) | (1 << TWSTO); 
-
 
 }
+void mux_stop()
+{ 
+    // Stop I2C transmission
+    TWCR = (1 << TWINT) | (1 << TWEN) | (1 << TWSTO); 
+    while(TWCR & (1 << TWSTO));
+    
+}
+uint16_t tsl_read_register(uint8_t reg){
+    uint16_t data = 0;
+    mux_start(0);
+    mux_write((TSL2591_ADDR << 1) | TW_WRITE);
+    mux_write(0x80 | 0x20 | reg); // COMMAND | DATA register
+    mux_start(0);
+    mux_write((TSL2591_ADDR << 1) | TW_READ);
+    data = TWDR;
+    mux_stop();
+    return data;
+}
+/*
+float calculate_lux(uint16_t ch0_data, uint16_t ch1_data) {
+    float lux = 0.0;
+    float ratio = 0.0;
+
+    if (ch0_data != 0) {
+        ratio = (float)ch1_data / (float)ch0_data;
+    }
+
+    if (ratio < 0.5) {
+        lux = (0.0304 * ch0_data) - (0.062 * ch0_data * pow(ratio, 1.4));
+    } else if (ratio < 0.61) {
+        lux = (0.0224 * ch0_data) - (0.031 * ch1_data);
+    } else if (ratio < 0.8) {
+        lux = (0.0128 * ch0_data) - (0.0153 * ch1_data);
+    } else if (ratio < 1.3) {
+        lux = (0.00146 * ch0_data) - (0.00112 * ch1_data);
+    }
+
+    return lux;
+}*/
