@@ -312,6 +312,7 @@ void flash_ledpin2(){
 }
 
 // Will select a light register that is 0 or 1
+// use ~5kohm resistor. to test if that's an appropriate resistance, test w oscope on each side of the mux
 void select_lightsensor(uint16_t channel){
     uint8_t datatosend = 0x00;
     if(channel == 0){
@@ -322,7 +323,6 @@ void select_lightsensor(uint16_t channel){
         // should be 0bXXXXXX1X
         datatosend = 1 << 1;
     }
-    uint8_t ctrl_reg = 0x01;    //according to TSL2591 page 16
-    uint8_t *to_write = [ctrl_reg, datatosend];
-    i2c_io(TCAADDR, NULL, 0, to_write, 2, NULL, 0);
+    // uint8_t ctrl_reg = 0x01;    //according to TSL2591 page 16
+    i2c_io(TCAADDR, NULL, 0, &datatosend, 1, NULL, 0);
 }
