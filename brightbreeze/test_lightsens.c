@@ -2,8 +2,11 @@
 #include <util/delay.h>
 #include <util/twi.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <math.h>
+// #include <float.h>
 
 #define TCAADDR 0x70        // address for MUX
 #define TSL2591_ADDR 0x29     // address for Light sensor (TSL)
@@ -18,7 +21,8 @@ void mux_start(uint8_t);
 void mux_write(uint8_t);
 void mux_stop();
 uint16_t tsl_read_register(uint8_t reg);
-float calculate_lux(uint16_t ch0_data, uint16_t ch1_data);
+// float calculate_lux(uint16_t ch0_data, uint16_t ch1_data);
+void flash_ledpin2();
 
 // Find divisors for the UART0 and I2C baud rates
 #define FOSC 9830400            // Clock frequency = Oscillator freq.
@@ -27,33 +31,59 @@ float calculate_lux(uint16_t ch0_data, uint16_t ch1_data);
 #define BDIV ((FOSC / 100000 - 16) / 2 + 1   ) // Puts I2C rate just below 100kHz
 
 int main(void){
+    /* steps: what address is it using, 
+    find in datasheet what command to send to talk to a certain channel. 
+    should see an ACK back on the oscope.
+
+    at beginning of program put a delay of 3s. 
+    put oscope on clock and data line. press SINGLE to show the next occurrence
+    */
     i2c_init(BDIV);             // Initialize the I2C port
     // if light sensor senses BRIGHT, light LED
     DDRC |= 1 << DDC0;          // Set PORTC bit 0 (pin 23, green led) for output
-    PORTC &= ~(1 << PC0);   // Set PC0 to a 0
+    // //flash led
+    // PORTC &= ~(1 << PC0);   // Set PC0 to a 0
+    // _delay_ms(100);
+    // PORTC |= 1 << PC0;      // Set PC0 to a 1
+    // _delay_ms(1000);
+    // PORTC &= ~(1 << PC0);   // Set PC0 to a 0
 
     printf("TSL2591 Light Sensor Test\n\n");
     // scan MUX for i2c addresses
 
     /* Initialise the 1st sensor */
     
-    _delay_ms(100);
+    _delay_ms(3000);
     uint8_t channel;
     for (channel = 0; channel < 2; channel++) {
         mux_start(channel);
+        // flash_ledpin2();
+        
         mux_write((TCAADDR << 1) | TW_WRITE);
-        mux_write(1 << channel);
+        // flash_ledpin2();
+
+        mux_write(channel);    //changed from passing 1 << channel
+        // flash_ledpin2();
+        
         mux_stop();       
+        // flash_ledpin2();
 
         mux_start(channel);
+        // flash_ledpin2();
+        
         mux_write((TCAADDR << 1) | TW_WRITE);
+        // flash_ledpin2();
+        
         mux_write(0x80 | 0x00); // COMMAND | ENABLE register
+        // flash_ledpin2();
+        
         mux_write(0x01 | 0x02); // Power ON and ALS enable
         mux_stop();        
         _delay_ms(100);
         //printf("Address for channel 0: %f Lux\n", event.light);
 
     }
+
     /* Display some basic information on this sensor */
     // printf("selecting OUTSIDE light sensor (sda/scl 0)...\n");
     // mux_select(0);
@@ -62,15 +92,17 @@ int main(void){
     // mux_select(1);
         
     uint16_t visibleLight_0 = 0;
+    // float visibleLux0 = 0.0f;
+    // float visibleLux1 = 0.0f;
     uint16_t visibleLight_1 = 0;
     while (1) {
-        PORTC &= ~(1 << PC0);   // Set PC0 to a 0
+        // flash_ledpin2();
 
         for (channel = 0; channel < 2; channel++) {
             //select channel
             mux_start(channel);
             mux_write((TCAADDR << 1) | TW_WRITE);
-            mux_write(1 << channel);
+            mux_write(channel); // changed from 1 << channel
             mux_stop(); 
             
             // get channel data
@@ -82,22 +114,27 @@ int main(void){
             // 0 to 65535 (2^16 - 1)
             if(channel == 0){
                 visibleLight_0 = ch0_data - ch1_data;   // call a function to fix this
-                printf("Sensor %d - CH0: %d, CH1: %d, visibleLight0 = %d\n", channel, ch0_data, ch1_data, visibleLight_0);
+                // visibleLux0 = calculate_lux(ch0_data, ch1_data);
+                // printf("Sensor %d - CH0: %d, CH1: %d, LUX = %f\n", channel, ch0_data, ch1_data, visibleLight_0);
             }
             else{
                 visibleLight_1 = ch0_data - ch1_data; 
-                printf("Sensor %d - CH0: %d, CH1: %d, visibleLight1 = %d\n", channel, ch0_data, ch1_data, visibleLight_1);
+                // visibleLux1 = calculate_lux(ch0_data, ch1_data);
+                // printf("Sensor %d - CH0: %d, CH1: %d, LUX = %f\n", channel, ch0_data, ch1_data, visibleLight_1);
             }
 
         }
 
-        if(visibleLight_0 >= visibleLight_1){
+
+        if(visibleLight_0 != visibleLight_1){
             //set LED on
-            PORTC |= 1 << PC0;      // Set PC0 to a 1
+            //PORTC |= 1 << PC0;      // Set PC0 to a 1
+            flash_ledpin2();
+
         }
         else{
             //set LED off
-            PORTC &= ~(1 << PC0);   // Set PC0 to a 0
+            //PORTC &= ~(1 << PC0);   // Set PC0 to a 0
 
         }
         // uint16_t als_data = 0;
@@ -124,7 +161,7 @@ int main(void){
         // getEvent(&in_ls1, &event);
         // printf("INSIDE sensor illuminance: %f Lux\n", event.light);
         
-        _delay_ms(500);
+        _delay_ms(1000);
         // if((/*LS0 port and address*/) == /*some value that equates to BRIGHT*/){
         //     // turn ON LED
         //     PORTC |= 1 << PC0;      // Set PC0 to a 1
@@ -328,18 +365,19 @@ void mux_start(uint8_t i)
     // Start I2C transmission (on TCAADDR)
     TWCR = (1 << TWINT) | (1 << TWSTA) | (1 << TWEN);
     while (!(TWCR & (1 << TWINT))); // Wait for TWINT to be set
-    
+
     // TWDR = TCAADDR // Load mux address 
     // TWCR = (1 << TWINT) | (1 << TWEN);  // Start transmission
     // while (!(TWCR & (1 << TWINT)));     // Wait for TWINT to be set
 }
-void mux_write(uint8_t i)
+void mux_write(uint8_t i)   // 3/27 ISSUE: problem occurs when we pass i = (1 << channel) where channel is 0 or 1
 {
     // Write to address i
     TWDR = 1 << i; // Load i address 
     // TWDR = i;    // maybe set TWDR to the address instead of shifted?
     TWCR = (1 << TWINT) | (1 << TWEN);  // Start transmission
     while (!(TWCR & (1 << TWINT)));     // Wait for TWINT to be set
+
 
 }
 void mux_stop()
@@ -362,22 +400,33 @@ uint16_t tsl_read_register(uint8_t reg){
 }
 /*
 float calculate_lux(uint16_t ch0_data, uint16_t ch1_data) {
-    float lux = 0.0;
-    float ratio = 0.0;
+    float lux = 0.0f;
+    float ratio = 0.0f;
+    float ch0f = (float)ch0_data;
+    float ch1f = (float)ch1_data;
 
-    if (ch0_data != 0) {
-        ratio = (float)ch1_data / (float)ch0_data;
+    if (ch0f != 0.0) {
+        ratio = ch1f / ch0f;
     }
 
-    if (ratio < 0.5) {
-        lux = (0.0304 * ch0_data) - (0.062 * ch0_data * pow(ratio, 1.4));
-    } else if (ratio < 0.61) {
-        lux = (0.0224 * ch0_data) - (0.031 * ch1_data);
-    } else if (ratio < 0.8) {
-        lux = (0.0128 * ch0_data) - (0.0153 * ch1_data);
-    } else if (ratio < 1.3) {
-        lux = (0.00146 * ch0_data) - (0.00112 * ch1_data);
+    if (ratio < 0.5f) {
+        lux = (0.0304f * ch0f) - (0.062f * ch0f * pow(ratio, 1.4f));
+    } else if (ratio < 0.61f) {
+        lux = (0.0224f * ch0f) - (0.031f * ch1f);
+    } else if (ratio < 0.8f) {
+        lux = (0.0128f * ch0f) - (0.0153f * ch1f);
+    } else if (ratio < 1.3f) {
+        lux = (0.00146f * ch0f) - (0.00112f * ch1f);
     }
 
     return lux;
 }*/
+void flash_ledpin2(){
+    PORTC &= ~(1 << PC0);   // Set PC0 to a 0
+    _delay_ms(100);
+    PORTC |= (1 << PC0);   // Set PC0 to a 1
+    _delay_ms(1000);
+    PORTC &= ~(1 << PC0);   // Set PC0 to a 0
+    _delay_ms(100);
+
+}
