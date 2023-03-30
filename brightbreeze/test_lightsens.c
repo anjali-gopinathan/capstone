@@ -43,25 +43,27 @@ int main(void){
     */
     uint8_t * rp = NULL;
     uint8_t * wp = NULL;
+    // uint8_t tsl_id_reg = 0x12;
    //[ctrl register, something to send to that reg]
     for(uint16_t i=0; i<2; i++){
         select_lightsensor(i);
         // Read 1 bytes from the ID register (of TSL)
         // ID register is 0x12, Device Identification is 0x50
-        *rp = [0x12, 0x50];
-        i2c_io(TSL2591_ADDR, NULL,  0,  NULL,  0, *rp, 2);
+        *rp = [0x12];
+        i2c_io(TSL2591_ADDR, NULL,  0,  NULL,  0, *rp, 1);
+        if(rp[0] == 0x50){ // if device id is 0x50 (it should be)
+            //Write 1 byte to the ENABLE register to set the PON bit. (see page 15 of datasheet).
+            // ENABLE is 0x00
+            // Power ON is 0x01
+            *wp = [0x00, 0x01];
+            i2c_io(TSL2591_ADDR, NULL,  0,  *wp,  2, NULL, 0); 
 
-        //Write 1 byte to the ENABLE register to set the PON bit. (see page 15 of datasheet).
-        // ENABLE is 0x00
-        // Power ON is 0x01
-        *wp = [0x00, 0x01];
-        i2c_io(TSL2591_ADDR, NULL,  0,  *wp,  2, NULL, 0); 
-
-        //Write 1 bytes to the CONTROL register to set AGAIN to medium and ATIME to 400ms.
-        // CONTROL REG is 0x01
-        // 0b0001
-        *wp = [0x01, 0b01010011];
-        i2c_io(TSL2591_ADDR, NULL,  0,  *wp,  2, NULL, 0);
+            //Write 1 bytes to the CONTROL register to set AGAIN to medium and ATIME to 400ms.
+            // CONTROL REG is 0x01
+            // 0b0001
+            *wp = [0x01, 0b01010011];
+            i2c_io(TSL2591_ADDR, NULL,  0,  *wp,  2, NULL, 0);
+        }
     }
     // select ls 0 by communicating with the MUX
 
@@ -72,9 +74,9 @@ int main(void){
         
     uint16_t visibleLight_0 = 0;
     uint16_t visibleLight_1 = 0;
-    while (1) {
-        
-
+    uint16_t visibleLight = [0,0];
+    //read sensor values
+    while (1) {   
         for (uint16_t channel = 0; channel < 2; channel++) {
             //select channel
             select_lightsensor(channel);
@@ -87,24 +89,24 @@ int main(void){
             // Read 1 byte from the STATUS register.  If the AVALID bits is zero repeat
             // this.  (see page 20) 
             // STATUS is 0x13
-            //
             *rp = [0x13];
-            i2c_io(TSL2591_ADDR, NULL,  0,  NULL,  0, *rp, 2);
+            i2c_io(TSL2591_ADDR, NULL,  0,  NULL,  0, *rp, 1);
 
-            //    Read 4 bytes from C0DATAL register.  This gives you the contents of the
+            // Read 4 bytes from C0DATAL register.  This gives you the contents of the
             // C0DATAL, C0DATAH, C1DATAL and C1DATAH registers (page 21) that contain the
             // sensor results
-            *rp = [0x14];
-            i2c_io(TSL2591_ADDR, NULL,  0,  NULL,  0, *rp, 2);
-            
-        
-            //    Write 1 byte to the ENABLE to set PON but leave AEN a zero
-
+            *rp = [0x14, NULL, NULL, NULL];
+            i2c_io(TSL2591_ADDR, NULL,  0,  NULL,  0, *rp, 4);
+            visible_light[channel] = ;
+                    
+            // Write 1 byte to the ENABLE to set PON but leave AEN a zero
+            *wp = [0x00, 0x01];
+            i2c_io(TSL2591_ADDR, NULL,  0,  *wp,  2, NULL, 0);
 
         }
 
 
-        if(visibleLight_0 != visibleLight_1){
+        if(visibleLight[0] != visibleLight[1]){
             //set LED on
             flash_ledpin2();    
         }
@@ -315,14 +317,35 @@ void flash_ledpin2(){
 // use ~5kohm resistor. to test if that's an appropriate resistance, test w oscope on each side of the mux
 void select_lightsensor(uint16_t channel){
     uint8_t datatosend = 0x00;
-    if(channel == 0){
-        // should be 0bXXXXXXX1
+    /*if(channel == 0){
         datatosend = 1 << 0;
     }
     else if(channel == 1){
-        // should be 0bXXXXXX1X
         datatosend = 1 << 1;
-    }
+    }*/
+    // channel 0 is 0bXXXXXXX1
+    // channel 1 is 0bXXXXXX1X
+    datatosend = 1 << channel;
     // uint8_t ctrl_reg = 0x01;    //according to TSL2591 page 16
     i2c_io(TCAADDR, NULL, 0, &datatosend, 1, NULL, 0);
+}
+float calculate_lux(uint16_t ch0_data, uint16_t ch1_data) {
+    float lux = 0.0;
+    float ratio = 0.0;
+
+    if (ch0_data != 0) {
+        ratio = (float)ch1_data / (float)ch0_data;
+    }
+
+    if (ratio < 0.5) {
+        lux = (0.0304 * ch0_data) - (0.062 * ch0_data * pow(ratio, 1.4));
+    } else if (ratio < 0.61) {
+        lux = (0.0224 * ch0_data) - (0.031 * ch1_data);
+    } else if (ratio < 0.8) {
+        lux = (0.0128 * ch0_data) - (0.0153 * ch1_data);
+    } else if (ratio < 1.3) {
+        lux = (0.00146 * ch0_data) - (0.00112 * ch1_data);
+    }
+
+    return lux;
 }
