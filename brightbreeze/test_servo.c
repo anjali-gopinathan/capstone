@@ -1,11 +1,10 @@
 #include <avr/io.h>
 #include <util/delay.h>
-// #include "lib/map.h"
 
 #define F_CPU 9830400  // Define the clock frequency of the microcontroller
 #define SERVO_PIN PB2     // Define the pin connected to the servo motor
-const uint8_t PULSE_MIN = 6;            // min width pulse (.5ms)
-const uint8_t PULSE_MAX = 36;           // max width pulse (2.3ms)
+const uint16_t PULSE_MIN = 128;            // min width pulse (.5ms)
+const uint16_t PULSE_MAX = 3000;           // max width pulse (2.3ms)
 const uint16_t SERVO_DELAY = 250;       // allow servo to move 
 
 void flash_ledpin2();
@@ -22,37 +21,36 @@ int main(void)
     //TCCR1A=(1<<COM1B0)|(1<<COM1B1)|(1<<WGM11);        //NON Inverted PWM 
     // TCCR1B = (1 << WGM13) | (1 << WGM12) | (1 << CS11); // this line sets
 
-    TCCR1B = (1<<COM1B1)|(1<<WGM11)|(1<<WGM13)|(1<<WGM12)|(1<<WGM10);
-    TCCR1B &= ~(1<<COM1B0);
+    TCCR1A = (1<<COM1B1)|(1<<WGM11)|(1<<WGM10);
+    TCCR1A &= ~(1<<COM1B0);
+    TCCR1B = (1<<WGM13)|(1<<WGM12);
     
     // set prescalar using cs00, cs01, or cs02
     // TCCR1B = (1<<CS02)|(1<<CS01);
 
     // Set the servo motor to its neutral position (1.5 ms pulse width)
-    OCR1A = PULSE_MAX;  // 375 = (1.5 ms / 20 us) * 8
-    //OCR1B=ICR1/2;
+   // OCR1A = PULSE_MIN;  // 375 = (1.5 ms / 20 us) * 8
 
-    OCR1B =PULSE_MAX/2;
+    OCR1B = PULSE_MIN;
     
     while (1)
-    {
-        // servo pulses must be in range from 6 to 36.
-        // // Set the servo motor to its maximum position (2 ms pulse width)
-        // OCR1A = 2000;        // 500 = (2 ms / 20 us) * 8
-        // _delay_ms(2000);    // Wait for 2 seconds
+    {   
+        uint16_t pulse_width;
+        // Move the servo from left to right
+        for (pulse_width = PULSE_MIN; pulse_width <= PULSE_MAX; pulse_width += 10) {
+            OCR1B = pulse_width;
+            _delay_ms(SERVO_DELAY);
+        }
 
-        // // Set the servo motor to its minimum position (1 ms pulse width)
-        // OCR1A = 4000;        // 250 = (1 ms / 20 us) * 8
-        // _delay_ms(2000);    // Wait for 2 seconds
+        // Move the servo from right to left
+        for (pulse_width = PULSE_MAX; pulse_width >= PULSE_MIN; pulse_width -= 10) {
+            OCR1B = pulse_width;
+            _delay_ms(SERVO_DELAY);
+        }
 
-        // // Set the servo motor to its neutral position (1.5 ms pulse width)
-        // //OCR1A = 1500;        // 375 = (1.5 ms / 20 us) * 8
-        // //_delay_ms(2000);    // Wait for 2 seconds
 
-        // flash_ledpin2();    // Flash the green LED
-        // Move the servo from minimum to maximum position
-        uint8_t i;
-        //flash_ledpin2();
+
+        uint16_t i;
         for (i = 0; i < 180; i++)
         {
             
@@ -61,12 +59,12 @@ int main(void)
             // set_pwm_1((duty_cycle % 30) + 6);
             set_pwm_1(i);
             // OCR1A = duty_cycle / 2;  // Set the duty cycle for the servo
-            _delay_ms(1);  // Wait before moving the servo to the next position
+            _delay_ms(SERVO_DELAY);  // Wait before moving the servo to the next position
              flash_ledpin2();
             
         }
         
-        uint8_t j;
+        uint16_t j;
         // int duty_cycle;
         // Move the servo from maximum to minimum position
         for (j = 180; j >= 0; j--)
@@ -77,7 +75,7 @@ int main(void)
             // OCR1A = duty_cycle / 2;  // Set the duty cycle for the servo
             // set_pwm_1((duty_cycle % 30) + 6);
             set_pwm_1(j);
-            _delay_ms(1);  // Wait 20 ms before moving the servo to the next position
+            _delay_ms(SERVO_DELAY);  // Wait 20 ms before moving the servo to the next position
             
             
         }
