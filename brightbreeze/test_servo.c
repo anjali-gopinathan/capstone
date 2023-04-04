@@ -2,27 +2,35 @@
 #include <util/delay.h>
 
 #define F_CPU 9830400  // Define the clock frequency of the microcontroller
-#define SERVO_PIN PB2     // Define the pin connected to the servo motor
-const uint16_t PULSE_MIN = 128;            // min width pulse (.5ms)
-const uint16_t PULSE_MAX = 3000;           // max width pulse (2.3ms)
-const uint16_t SERVO_DELAY = 100;       // allow servo to move 
+//#define SERVO_PIN PB2     // Define the pin connected to the servo motor
+#define SERVO_PIN PD5     // Define the pin connected to the servo motor
+// const uint16_t PULSE_MIN = 128;            // min width pulse (.5ms)
+// const uint16_t PULSE_MAX = 3000;           // max width pulse (2.3ms)
+// const uint16_t SERVO_DELAY = 50;       // allow servo to move 
+const uint16_t PULSE_MIN = 5;            
+const uint16_t PULSE_MAX = 230;           
+const uint16_t SERVO_DELAY = 100; 
 
 void flash_ledpin2();
 void servo1_init();
 void change_blinds(uint8_t direction);      // direction = 1: open, direction = -1: close
 void change_windows(uint8_t direction);     // direction = 1: open, direction = -1: close
 
+void test_change_blinds(uint8_t direction);  
+void test_servo1_init();
+
 int main(void)
 {
     
-    servo1_init();
+    test_servo1_init();
     DDRC |= 1 << DDC0;          // Set PORTC bit 0 (pin 23, red led) for output
+    
 
     while (1)
     {   
-        change_blinds(1);
+        test_change_blinds(1);
         flash_ledpin2();
-        change_blinds(0);
+        test_change_blinds(0);
         flash_ledpin2();
     
     }
@@ -44,19 +52,56 @@ void servo1_init(){
     OCR1A = 40000;
     OCR1B = 3000;    
 }
+
+void test_servo1_init(){
+    DDRD |= (1 << SERVO_PIN);   // Set up the data direction register (DDRD) for the servo pin as an output 
+
+    TCCR0A |= (1<<COM0B1)|(1<<WGM01)|(1<<WGM00);
+    TCCR0A &= ~(1<<COM0B0); 
+    TCCR0B |= (1<<WGM02);
+    
+    // set prescalar 
+    TCCR0B &= ~(1 << CS00);
+	TCCR0B &= ~(1 << CS02);
+	TCCR0B |= (1 << CS01);
+
+    // OCR1B = PULSE_MIN; OCR1A = PULSE_MAX
+    OCR0A = 2000;
+    OCR0B = 10;    
+}
+
+void test_change_blinds(uint8_t direction){
+    uint8_t pulse_width;
+
+    if(direction == 1){ //open blinds
+        // Move the servo from left to right
+        for (pulse_width = PULSE_MIN; pulse_width <= PULSE_MAX; pulse_width += 50) {
+            OCR0B = pulse_width;
+            _delay_ms(SERVO_DELAY);
+        }
+    }
+    else{   //close blinds
+        // Move the servo from right to left
+        for (pulse_width = PULSE_MAX; pulse_width >= PULSE_MIN; pulse_width -= 50) {
+            OCR0B = pulse_width;
+            _delay_ms(SERVO_DELAY);
+        }
+    }
+}
+
 void change_blinds(uint8_t direction){
     uint16_t pulse_width;
 
     if(direction == 1){ //open blinds
         // Move the servo from left to right
-        for (pulse_width = PULSE_MIN; pulse_width <= PULSE_MAX; pulse_width += 100) {
+        for (pulse_width = PULSE_MIN; pulse_width <= PULSE_MAX; pulse_width += 20) {
             OCR1B = pulse_width;
             _delay_ms(SERVO_DELAY);
         }
     }
     else{   //close blinds
         // Move the servo from right to left
-        for (pulse_width = PULSE_MAX; pulse_width >= PULSE_MIN; pulse_width -= 100) {
+        for (pulse_width = PULSE_MAX; pulse_width >= PULSE_MIN; pulse_width -= 20) {
             OCR1B = pulse_width;
             _delay_ms(SERVO_DELAY);
         }
