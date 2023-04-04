@@ -7,8 +7,8 @@
 #include <string.h>
 #include <math.h>
 
-#define TCAADDR 0x70        // address for MUX
-#define TSL2591_ADDR 0x29     // address for Light sensor (TSL)
+#define TCAADDR 0xE0        // address for MUX
+#define TSL2591_ADDR 0x52     // address for Light sensor (TSL)
 
 void i2c_init(uint8_t);
 uint8_t i2c_io(uint8_t, uint8_t *, uint16_t,
@@ -42,7 +42,7 @@ int main(void){
     /*
     SET UP I2C WITH i2c_io function
     */
-
+ _delay_ms(3000);
     // uint8_t tsl_id_reg = 0x12;
    //[ctrl register, something to send to that reg]
    uint16_t i;

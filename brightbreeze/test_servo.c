@@ -3,7 +3,7 @@
 // #include "lib/map.h"
 
 #define F_CPU 9830400  // Define the clock frequency of the microcontroller
-#define SERVO_PIN PD5     // Define the pin connected to the servo motor
+#define SERVO_PIN PB2     // Define the pin connected to the servo motor
 const uint8_t PULSE_MIN = 6;            // min width pulse (.5ms)
 const uint8_t PULSE_MAX = 36;           // max width pulse (2.3ms)
 const uint16_t SERVO_DELAY = 250;       // allow servo to move 
@@ -15,20 +15,24 @@ uint8_t constrain(uint8_t value, uint8_t min, uint8_t max);
 int main(void)
 {
     // Set up the data direction register (DDRD) for the servo pin as an output
-    DDRD |= (1 << SERVO_PIN);
+    DDRB |= (1 << SERVO_PIN);
 
     DDRC |= 1 << DDC0;          // Set PORTC bit 0 (pin 23, red led) for output
-    
     // Set up the Timer/Counter1 (TC1) for Fast PWM mode with a prescaler of 8
-    TCCR1A=(1<<COM1A1)|(1<<COM1B1)|(1<<WGM11);        //NON Inverted PWM 
-    TCCR1B=(1<<WGM13)|(1<<WGM12)|(1<<CS11);
-    ICR1=20000;
+    //TCCR1A=(1<<COM1B0)|(1<<COM1B1)|(1<<WGM11);        //NON Inverted PWM 
+    // TCCR1B = (1 << WGM13) | (1 << WGM12) | (1 << CS11); // this line sets
+
+    TCCR1B = (1<<COM1B1)|(1<<WGM11)|(1<<WGM13)|(1<<WGM12)|(1<<WGM10);
+    TCCR1B &= ~(1<<COM1B0);
+    
     // set prescalar using cs00, cs01, or cs02
     // TCCR1B = (1<<CS02)|(1<<CS01);
 
     // Set the servo motor to its neutral position (1.5 ms pulse width)
-    // OCR1A = PULSE_MIN;  // 375 = (1.5 ms / 20 us) * 8
-    OCR1B=ICR1/2;
+    OCR1A = PULSE_MAX;  // 375 = (1.5 ms / 20 us) * 8
+    //OCR1B=ICR1/2;
+
+    OCR1B =PULSE_MAX/2;
     
     while (1)
     {
@@ -48,6 +52,7 @@ int main(void)
         // flash_ledpin2();    // Flash the green LED
         // Move the servo from minimum to maximum position
         uint8_t i;
+        //flash_ledpin2();
         for (i = 0; i < 180; i++)
         {
             
@@ -57,6 +62,7 @@ int main(void)
             set_pwm_1(i);
             // OCR1A = duty_cycle / 2;  // Set the duty cycle for the servo
             _delay_ms(1);  // Wait before moving the servo to the next position
+             flash_ledpin2();
             
         }
         
@@ -73,7 +79,7 @@ int main(void)
             set_pwm_1(j);
             _delay_ms(1);  // Wait 20 ms before moving the servo to the next position
             
-            flash_ledpin2();
+            
         }
     }
 }
@@ -88,6 +94,7 @@ uint16_t set_pwm_1(uint8_t angle_value)
    _delay_ms(SERVO_DELAY);
    return 0;        // fix for later: make this return the analog reading
 }
+
 uint8_t constrain(uint8_t value, uint8_t min, uint8_t max){
     if(value<min) return min;
     else if (value>max) return max;
