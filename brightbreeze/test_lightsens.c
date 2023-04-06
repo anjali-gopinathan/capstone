@@ -32,7 +32,7 @@ int main(void){
 
     // power on TSL light sensor
     // // to send to the command register of one of the TSLs:
-    // // (see page 14 of TSL datasheet: https://cdn-learn.adafruit.com/assets/assets/000/078/658/original/TSL2591_DS000338_6-00.pdf?1564168468)
+    // // (see page0x12 14 of TSL datasheet: https://cdn-learn.adafruit.com/assets/assets/000/078/658/original/TSL2591_DS000338_6-00.pdf?1564168468)
     // // 0b10100110
     // to send to the ENABLE regsiter (beginning of page 15)
     // 0b76543210
@@ -44,17 +44,21 @@ int main(void){
     // uint8_t tsl_id_reg = 0x12;
    //[ctrl register, something to send to that reg]
     uint16_t i;
+    uint8_t wp;
     for(i=0; i<2; i++){
         select_lightsensor(i);
         // Read 1 bytes from the ID register (of TSL)
         // ID register is 0x12, Device Identification is 0x50
-        uint8_t rp[1] = {0x12};
-        i2c_io(TSL2591_ADDR, NULL,  0,  NULL,  0, rp , 1);
-        if(rp[0] == TCAADDR){ // if device id is 0xE0 (it should be)
+        // uint8_t rp[1] = {0x12};
+        // tsl address is 0x52
+        uint8_t rp[1];
+        wp = 0b10110010; // from cmd reg: 5 LSBs are 0x12 in binary
+        i2c_io(TSL2591_ADDR, NULL,  0,  &wp,  1, rp , 1);   //overwrites rp
+        if(rp[0] == 0x50){ // if device id is 0xE0 (it should be)
             //Write 1 byte to the ENABLE register to set the PON bit. (see page 15 of datasheet).
             // Power ON in ENABLE is 0x01
-            uint8_t wp[1] = {0x01};
-            i2c_io(TSL2591_ADDR, NULL,  0,  wp,  1, NULL, 0); 
+            wp = {0x01};
+            i2c_io(TSL2591_ADDR, NULL,  0, & wp,  1, NULL, 0); 
 
             //Write 1 bytes to the CONTROL register to set AGAIN to medium and ATIME to 400ms.
             // CONTROL REG is 0x01

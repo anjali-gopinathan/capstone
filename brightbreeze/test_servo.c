@@ -35,12 +35,12 @@ int main(void)
     while (1)
     {   
         change_windows_timer2(1);
-        // change_blinds_timer0(1);
+        change_blinds_timer0(1);
         
         flash_ledpin2();
         
         change_windows_timer2(0);
-        // change_blinds_timer0(0);
+        change_blinds_timer0(0);
         
         flash_ledpin2();
     
@@ -73,15 +73,15 @@ void servo1__timer0_init(){
 
     // TCCR0B |= (1 << CS01) | (1 << CS00); // Set the prescaler to 64
 
-    // set prescalar to 256 (100)
-	TCCR0B |= (1 << CS02);            
-	TCCR0B &= ~(1 << CS01);
-    TCCR0B &= ~(1 << CS00);
+    // set prescalar to 256 (100) see page 142 of atmega328p documentation
+	TCCR0B |= (1 << CS02);  //1           
+	TCCR0B &= ~(1 << CS01); //0
+    TCCR0B &= ~(1 << CS00); //0
 
     // OCR1B = PULSE_MIN; OCR1A = PULSE_MAX
     // OCR0A = PULSE_MAX;
     OCR0A = 249;
-    OCR0B = PULSE_MIN;    
+    OCR0B = 128;    
 }
 
 //see page 206 of atmega328p documentation
