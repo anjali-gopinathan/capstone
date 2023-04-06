@@ -27,8 +27,6 @@ int main(void){
     i2c_init(BDIV);             // Initialize the I2C port
     DDRC |= 1 << DDC0;          // Set PORTC bit 0 (pin 23, green led) for output
    
-
-    // printf("TSL2591 Light Sensor Test\n\n");
     
     // activate light sensor 0
 
@@ -42,22 +40,21 @@ int main(void){
     /*
     SET UP I2C WITH i2c_io function
     */
- _delay_ms(3000);
+    _delay_ms(3000);
     // uint8_t tsl_id_reg = 0x12;
    //[ctrl register, something to send to that reg]
-   uint16_t i;
+    uint16_t i;
     for(i=0; i<2; i++){
         select_lightsensor(i);
         // Read 1 bytes from the ID register (of TSL)
         // ID register is 0x12, Device Identification is 0x50
         uint8_t rp[1] = {0x12};
         i2c_io(TSL2591_ADDR, NULL,  0,  NULL,  0, rp , 1);
-        if(rp[0] == 0x50){ // if device id is 0x50 (it should be)
+        if(rp[0] == TCAADDR){ // if device id is 0xE0 (it should be)
             //Write 1 byte to the ENABLE register to set the PON bit. (see page 15 of datasheet).
-            // ENABLE is 0x00
-            // Power ON is 0x01
-            uint8_t wp[2] = {0x00, 0x01};
-            i2c_io(TSL2591_ADDR, NULL,  0,  wp,  2, NULL, 0); 
+            // Power ON in ENABLE is 0x01
+            uint8_t wp[1] = {0x01};
+            i2c_io(TSL2591_ADDR, NULL,  0,  wp,  1, NULL, 0); 
 
             //Write 1 bytes to the CONTROL register to set AGAIN to medium and ATIME to 400ms.
             // CONTROL REG is 0x01
@@ -316,15 +313,15 @@ void flash_ledpin2(){
 // use ~5kohm resistor. to test if that's an appropriate resistance, test w oscope on each side of the mux
 void select_lightsensor(uint16_t channel){
     uint8_t datatosend = 0x00;
-    /*if(channel == 0){
-        datatosend = 1 << 0;
+    if(channel == 0){
+        datatosend = 0b10100001;
     }
     else if(channel == 1){
-        datatosend = 1 << 1;
-    }*/
+        datatosend = 0b10100010;
+    }
     // channel 0 is 0bXXXXXXX1
     // channel 1 is 0bXXXXXX1X
-    datatosend = 1 << channel;
+    //datatosend = 1 << channel;
     // uint8_t ctrl_reg = 0x01;    //according to TSL2591 page 16
     i2c_io(TCAADDR, NULL, 0, &datatosend, 1, NULL, 0);
 }
