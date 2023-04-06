@@ -320,10 +320,10 @@ void flash_ledpin2(){
 void select_lightsensor(uint16_t channel){
     uint8_t datatosend = 0x00;
     if(channel == 0){
-        datatosend = 0b10100001;
+        datatosend = 0b00000001;
     }
     else if(channel == 1){
-        datatosend = 0b10100010;
+        datatosend = 0b00000010;
     }
     // channel 0 is 0bXXXXXXX1
     // channel 1 is 0bXXXXXX1X
