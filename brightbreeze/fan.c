@@ -30,7 +30,7 @@ int main(void)
 
     while (1) {
         PORTB |= 1 << PB7;      // Set PB7 to a 1 (on)
-        _delay_ms(500);
+        _delay_ms(3000);
         PORTB &= ~(1 << PB7);   // Set PB7 to a 0
         _delay_ms(1000);
         flash_ledpin2();
