@@ -40,44 +40,41 @@ int main(void){
     /*
     SET UP I2C WITH i2c_io function
     */
-    _delay_ms(3000);
     // uint8_t tsl_id_reg = 0x12;
    //[ctrl register, something to send to that reg]
+
+    //_delay_ms(3000);
+
+
     uint16_t i;
     uint8_t wp;
+    uint8_t wp2;
+    uint8_t rp[1];
+    uint8_t rp_data[4];
     for(i=0; i<2; i++){
         select_lightsensor(i);
         // Read 1 bytes from the ID register (of TSL)
         // ID register is 0x12, Device Identification is 0x50
-        // uint8_t rp[1] = {0x12};
-        // tsl address is 0x52
-        uint8_t rp[1];
-        wp = 0b10110010; // from cmd reg: 5 LSBs are 0x12 in binary
+        wp = 0b10110010; // from cmd reg: 5 LSBs are 0x12 in binary. wp is b2.
         i2c_io(TSL2591_ADDR, NULL,  0,  &wp,  1, rp , 1);   //overwrites rp
         if(rp[0] == 0x50){ // if device id is 0xE0 (it should be)
             //Write 1 byte to the ENABLE register to set the PON bit. (see page 15 of datasheet).
             // Power ON in ENABLE is 0x01
-            wp = {0x01};
-            i2c_io(TSL2591_ADDR, NULL,  0, & wp,  1, NULL, 0); 
+            wp2 = 0b00000001; //in the enable reg
+            wp = 0b101000000; //in the command reg
+            i2c_io(TSL2591_ADDR, &wp,  1, &wp2,  1, NULL, 0); 
 
             //Write 1 bytes to the CONTROL register to set AGAIN to medium and ATIME to 400ms.
-            // CONTROL REG is 0x01
-            // 0b0001
-            //uint8_t wp2[2] = {0x01, 0b01010011};
-            uint8_t wp2[1] = {0b0001011};
-            i2c_io(TSL2591_ADDR, NULL,  0,  wp2,  1, NULL, 0);
+            wp2 = 0b00010011; //in the control register
+            wp =  0b10100001; //in the command register
+            i2c_io(TSL2591_ADDR, &wp,  1,  &wp2,  1, NULL, 0);
         }
     }
-    // select ls 0 by communicating with the MUX
-
-    //now that ls 0 is selected, we can talk to 0x29 (TSL) and power on LS 0
     
     _delay_ms(3000);
 
         
-    //uint16_t visibleLight_0 = 0;
-    //uint16_t visibleLight_1 = 0;
-    uint16_t visibleLight[2] = {0,0};
+    uint16_t visibleLight[2];
     //read sensor values
     while (1) {
         uint16_t channel;   
@@ -86,39 +83,38 @@ int main(void){
             select_lightsensor(channel);
             // Write 1 byte to the ENABLE register to set PON and AEN bits.  This
             // starts a conversion
-            //uint8_t wp1[2] = {0x00, 0b000000011};
-            uint8_t wp1[1] = {0b00000011};
-            i2c_io(TSL2591_ADDR, NULL,  0,  wp1,  1, NULL, 0);
+            wp2 = 0b00000011; //in the enable reg
+            wp = 0b101000000; //in the command reg
+            i2c_io(TSL2591_ADDR, &wp,  1,  &wp2,  1, NULL, 0);
 
 
-            // Read 1 byte from the STATUS register.  If the AVALID bits is zero repeat
-            // this.  (see page 20) 
+            // Read 1 byte from the STATUS register.  If the AVALID bits is zero repeat this.  (see page 20) 
             // STATUS is 0x13
-            uint8_t rp1[1] = {0x13};
-            i2c_io(TSL2591_ADDR, NULL,  0,  NULL,  0, rp1, 1);
-            if (rp1[0] == 0x00){
+            wp = 0b10110011;
+            i2c_io(TSL2591_ADDR, &wp,  1,  NULL,  0, rp, 1);
+            while (rp[0] & 0b00000001 != 0 ){ //to check if rp1[0]'s LSB is 1: if(rp1[0] & 0b00000001 == 0)
                 flash_ledpin2();
+                wp = 0b10110011;
+                i2c_io(TSL2591_ADDR, &wp,  1,  NULL,  0, rp, 1);
             }
 
             // Read 4 bytes from C0DATAL register.  This gives you the contents of the
-            // C0DATAL, C0DATAH, C1DATAL and C1DATAH registers (page 21) that contain the
-            // sensor results
-            uint8_t rp2[4] = {0x14, 0, 0, 0};
-            i2c_io(TSL2591_ADDR, NULL,  0,  NULL,  0, rp2, 4);
-            visibleLight[channel] = rp2[0];
+            // C0DATAL, C0DATAH, C1DATAL and C1DATAH registers (page 21) that contain the sensor results
+            wp = 0b10110100;
+            i2c_io(TSL2591_ADDR, NULL,  0,  &wp,  1, rp_data, 4);
+            visibleLight[channel] = rp_data[1];
                     
             // Write 1 byte to the ENABLE to set PON but leave AEN a zero
-            //uint8_t wp2[2] = {0x00, 0x01};
-            uint8_t wp2[1] = {0x0000001};
-            i2c_io(TSL2591_ADDR, NULL,  0,  wp2,  1, NULL, 0);
+            wp = 0b10100000;
+            wp2 = 0b0000001;
+            i2c_io(TSL2591_ADDR, &wp,  1,  &wp2,  1, NULL, 0);
         }
+
         if(visibleLight[0] != visibleLight[1]){
             //set LED on
             flash_ledpin2();    
         }
-        else{
 
-        }
         
         _delay_ms(1000);
 
@@ -329,8 +325,6 @@ void select_lightsensor(uint16_t channel){
     else if(channel == 1){
         datatosend = 0b00000010;
     }
-    // channel 0 is 0bXXXXXXX1
-    // channel 1 is 0bXXXXXX1X
     //datatosend = 1 << channel;
     // uint8_t ctrl_reg = 0x01;    //according to TSL2591 page 16
     i2c_io(TCAADDR, NULL, 0, &datatosend, 1, NULL, 0);
