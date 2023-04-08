@@ -7,6 +7,9 @@
 #include <string.h>
 #include <math.h>
 
+#include "lcd.h"
+#include "lcd.c"
+
 #define TCAADDR 0xE0        // address for MUX
 #define TSL2591_ADDR 0x52     // address for Light sensor (TSL)
 
@@ -23,6 +26,9 @@ void select_lightsensor(uint16_t);
 #define BDIV ((FOSC / 100000 - 16) / 2 + 1   ) // Puts I2C rate just below 100kHz
 
 int main(void){
+
+    // lcd_init(); //initialize LCD
+    // lcd_writedata("Hello");
     
     i2c_init(BDIV);             // Initialize the I2C port
     DDRC |= 1 << DDC0;          // Set PORTC bit 0 (pin 23, green led) for output
