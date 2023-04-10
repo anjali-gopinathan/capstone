@@ -154,4 +154,4 @@ int main(void){
     flash_redled();
     lcd_writecommand(1);
     lcd_writedata("hello");
-}        CXX
+}        
