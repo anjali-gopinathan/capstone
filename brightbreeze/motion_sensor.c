@@ -11,7 +11,6 @@ int main(void)
 {
     DDRD |= 1 << DDD2;  // set LED output        
     
-    
     motion_sensor_init();
     
     while (1) {
