@@ -161,16 +161,6 @@ void lcd_writenibble(unsigned char lcdbits)
 
 }
 
-void flash_redled(){
-    PORTD &= ~(1 << PD2);   // Set PC0 to a 0
-    _delay_ms(100);
-    PORTD |= (1 << PD2);   // Set PC0 to a 1
-    _delay_ms(1000);
-    PORTD &= ~(1 << PD2);   // Set PC0 to a 0
-    _delay_ms(100);
-
-}
-
 int main(void){
     DDRD |= (1 << PD2);
     lcd_init();

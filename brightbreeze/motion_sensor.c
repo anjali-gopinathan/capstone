@@ -5,14 +5,15 @@
 //motion sensor is on pin 6 (PD4)
 void flash_redled();
 
+void motion_sensor_init();
+
 int main(void)
 {
-    DDRD |= 1 << DDD2;          
+    DDRD |= 1 << DDD2;  // set LED output        
     
     
-    DDRD &= ~(1 << DDD4);          // Set pin for input
+    motion_sensor_init();
     
-    flash_redled();
     while (1) {
         bool motion_detected = ((PIND & (1 << PD4)));
 
@@ -26,6 +27,11 @@ int main(void)
     }
 
     return 0;   /* never reached */
+}
+
+void motion_sensor_init(){
+    DDRD &= ~(1 << DDD4);          // Set pin for input
+
 }
 
 void flash_redled(){
