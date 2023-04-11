@@ -1,7 +1,7 @@
 DEVICE     = atmega328p
 CLOCK      = 9830400
 PROGRAMMER = -c usbtiny -P usb
-OBJECTS    = lcd.o
+OBJECTS    = motion_sens.o
 FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0xe0:m
 
 # Fuse Low Byte = 0xe0   Fuse High Byte = 0xd9   Fuse Extended Byte = 0xff
