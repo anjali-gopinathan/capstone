@@ -78,6 +78,10 @@ int main(void){
         
     uint16_t visibleLight[2];
     int count = 0;
+    uint16_t visible_infared_light= 0;
+    uint16_t infared_light= 0;
+    uint16_t visible_light= 0;
+
     //read sensor values
     while (1) {
         uint16_t channel;   
@@ -101,7 +105,7 @@ int main(void){
                 i2c_io(TSL2591_ADDR, &wp,  1,  NULL,  0, rp, 1);
             }
 
-            _delay_ms(4000);
+           // _delay_ms(4000);
 
             // Read 4 bytes from C0DATAL register.  This gives you the contents of the
             // C0DATAL, C0DATAH, C1DATAL and C1DATAH registers (page 21) that contain the sensor results
@@ -110,20 +114,28 @@ int main(void){
             //rp_data is: CA 2F 71 09 
             //rp_data is: E8 02 E5 00 -- Ch0, ch0, ch1, ch1 when uncovered
             //rp_data is: 0D 00 06 00
-            visibleLight[channel] = rp_data[0];
-            if(count ==0){
-                //LCDHome();
-                LCDGotoXY(0, 1);
-                LCDWriteInt(rp_data[0], 5);
-                LCDGotoXY(0, 2);
-                LCDWriteInt(rp_data[1], 5);
-                LCDGotoXY(0,3);
-                LCDWriteInt(rp_data[2], 5);
-                LCDGotoXY(0,4);
-                LCDWriteInt(rp_data[3], 5);
+            
+            //visibleLight[channel] = rp_data[0];
 
+            //taking in and combining the data bits into infared and infared+visible light
+            visible_infared_light = ((uint16_t) rp_data[1] << 8) | rp_data[0]; //uppper bits OR with lower bits
+            infared_light = ((uint16_t) rp_data[3] << 8) | rp_data[2];
+           
+           // subtracting the two to get visible light (still need to convert to lux)
+            visible_light = visible_infared_light - infared_light;
+            visibleLight[channel] = visible_light;
+
+            if(count ==0){
+                LCDGotoXY(0, 1);
+                LCDWriteInt(visible_infared_light, 5);
+                LCDGotoXY(0, 2);
+                LCDWriteInt(infared_light, 5);
+                LCDGotoXY(0,3);
+                LCDWriteInt(visible_light, 5);
             }
-            count +=1;    
+            count +=1;  
+
+
             // Write 1 byte to the ENABLE to set PON but leave AEN a zero
             wp =  0b10100000;
             wp2 = 0b00000001;   //enable reg: 3 MSBs are 0
