@@ -20,6 +20,7 @@ int main(void)
         bool motion_detected = ((PIND & (1 << PD4)));
 
         LCDHome();
+        LCDClear();
 
         if(motion_detected){
             PORTD |= (1 << PD2);   // Set PC0 to a 1

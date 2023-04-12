@@ -121,7 +121,7 @@ int main(void){
             visible_infared_light = ((uint16_t) rp_data[1] << 8) | rp_data[0]; //uppper bits OR with lower bits
             infared_light = ((uint16_t) rp_data[3] << 8) | rp_data[2];
            
-           // subtracting the two to get visible light (still need to convert to lux)
+            //subtracting the two to get visible light (still need to convert to lux)
             visible_light = visible_infared_light - infared_light;
             visibleLight[channel] = visible_light;
 
