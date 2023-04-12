@@ -8,13 +8,14 @@
 #include <math.h>
 
 
+#include "OnLCDLib.h"
+
 #define TCAADDR 0xE0        // address for MUX
 #define TSL2591_ADDR 0x52     // address for Light sensor (TSL)
 
 void i2c_init(uint8_t);
 uint8_t i2c_io(uint8_t, uint8_t *, uint16_t,
                uint8_t *, uint16_t, uint8_t *, uint16_t);
-void flash_redled();
 void select_lightsensor(uint16_t);
 
 // Find divisors for the UART0 and I2C baud rates
@@ -24,10 +25,10 @@ void select_lightsensor(uint16_t);
 #define BDIV ((FOSC / 100000 - 16) / 2 + 1   ) // Puts I2C rate just below 100kHz
 
 int main(void){
+
+    LCDSetup(LCD_CURSOR_BLINK);
     
     i2c_init(BDIV);             // Initialize the I2C port
-    DDRC |= 1 << DDC0;          // Set PORTC bit 0 (pin 23, green led) for output
-   
     
     // activate light sensor 0
 
@@ -76,6 +77,7 @@ int main(void){
 
         
     uint16_t visibleLight[2];
+    int count = 0;
     //read sensor values
     while (1) {
         uint16_t channel;   
@@ -109,7 +111,19 @@ int main(void){
             //rp_data is: E8 02 E5 00 -- Ch0, ch0, ch1, ch1 when uncovered
             //rp_data is: 0D 00 06 00
             visibleLight[channel] = rp_data[0];
-                    
+            if(count ==0){
+                //LCDHome();
+                LCDGotoXY(0, 1);
+                LCDWriteInt(rp_data[0], 5);
+                LCDGotoXY(0, 2);
+                LCDWriteInt(rp_data[1], 5);
+                LCDGotoXY(0,3);
+                LCDWriteInt(rp_data[2], 5);
+                LCDGotoXY(0,4);
+                LCDWriteInt(rp_data[3], 5);
+
+            }
+            count +=1;    
             // Write 1 byte to the ENABLE to set PON but leave AEN a zero
             wp =  0b10100000;
             wp2 = 0b00000001;   //enable reg: 3 MSBs are 0
@@ -118,7 +132,14 @@ int main(void){
         }
 
         if(visibleLight[0] != visibleLight[1]){
-            flash_redled();    
+            // LCDHome();
+            // LCDWriteString("Light on Ch0:    ");
+            // LCDGotoXY(14, 0);
+            // LCDWriteInt(visibleLight[0], 5);  
+            
+            // LCDGotoXY(0,1);
+            // LCDWriteString("Light on Ch1:    ");
+
         }
         
         _delay_ms(1000);
@@ -308,16 +329,6 @@ void i2c_init(uint8_t bdiv)
 {
     TWSR = 0;                           // Set prescalar for 1
     TWBR = bdiv;                        // Set bit rate register
-}
-
-void flash_redled(){
-    PORTC &= ~(1 << PC0);   // Set PC0 to a 0
-    _delay_ms(100);
-    PORTC |= (1 << PC0);   // Set PC0 to a 1
-    _delay_ms(1000);
-    PORTC &= ~(1 << PC0);   // Set PC0 to a 0
-    _delay_ms(100);
-
 }
 
 // Will select a light register that is 0 or 1
