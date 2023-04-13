@@ -13,9 +13,7 @@ const char* menulist[] = {      //first character of each line to be replaced by
     "  Man. toggle window",
     "  Man. toggle blinds",
     "  Man. toggle fan",
-    "  ||ADVANCED||",
-    "  Brightness IN:  DIM",
-    "  Brightness OUT: BRIGHT"
+    "  IN is brighter than OUT"
 }
 uint8_t numMenuOptions = sizeof(menulist)/sizeof(menulist[0]);    
 

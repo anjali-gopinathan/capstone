@@ -23,12 +23,10 @@ int main(void)
         LCDClear();
 
         if(motion_detected){
-            PORTD |= (1 << PD2);   // Set PC0 to a 1
             _delay_ms(500);
             LCDWriteString("motion detected");
         }
         else{
-            PORTD &= ~(1 << PD2);   // Set PC0 to a 0
             LCDWriteString("no motion detected");
         }
     }
