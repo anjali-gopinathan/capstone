@@ -126,11 +126,11 @@ int main(void){
             visibleLight[channel] = visible_light;
 
             if(count ==0){
-                LCDGotoXY(0, 1);
+                LCDGotoXY(1, 1);
                 LCDWriteInt(visible_infared_light, 5);
-                LCDGotoXY(0, 2);
+                LCDGotoXY(1, 2);
                 LCDWriteInt(infared_light, 5);
-                LCDGotoXY(0,3);
+                LCDGotoXY(1,3);
                 LCDWriteInt(visible_light, 5);
             }
             count +=1;  
