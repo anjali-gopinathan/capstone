@@ -3,6 +3,10 @@
     "files.associations": {
         "stdlib.h": "c",
         "io.h": "c",
-        "i2c_functions.h": "c"
+        "i2c_functions.h": "c",
+        "onlcdlib.h": "c",
+        "stdint.h": "c",
+        "math.h": "c",
+        "light_sensors.h": "c"
     }
 }

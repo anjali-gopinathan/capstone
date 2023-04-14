@@ -1,5 +1,3 @@
-#include <avr/io.h>
-#include <util/delay.h>
 
 // #define F_CPU 9830400  // Define the clock frequency of the microcontroller
 #define SERVO1_PIN PD5     // Define the pin connected to the servo motor
@@ -9,7 +7,6 @@ const uint8_t PULSE_MIN = 25;
 const uint8_t PULSE_MAX = 125;           
 const uint8_t SERVO_DELAY = 100; 
 
-void flash_ledpin2();
 void change_blinds(uint8_t direction);      // direction = 1: open, direction = -1: close
 void change_windows(uint8_t direction);     // direction = 1: open, direction = -1: close
 
@@ -18,31 +15,6 @@ void change_windows_timer2(uint8_t direction);
 
 void servo1__timer0_init();
 void servo2__timer2_init();
-
-
-int main(void)
-{
-    
-    servo1__timer0_init();
-    servo2__timer2_init();
-    DDRC |= 1 << DDC0;          // Set PORTC bit 0 (pin 23, red led) for output
-    
-
-    while (1)
-    {   
-        change_windows_timer2(1);
-        change_blinds_timer0(1);
-        
-        flash_ledpin2();
-        
-        change_windows_timer2(0);
-        change_blinds_timer0(0);
-        
-        flash_ledpin2();
-    
-    }
-}
-
 
 void servo1__timer0_init(){
     DDRD |= (1 << SERVO1_PIN);   // Set up the data direction register (DDRD) for the servo pin as an output 
@@ -111,14 +83,4 @@ void change_windows_timer2(uint8_t direction){
             _delay_ms(SERVO_DELAY);
         }
     }
-}
-
-void flash_ledpin2(){
-    PORTC &= ~(1 << PC0);   // Set PC0 to a 0
-    _delay_ms(100);
-    PORTC |= (1 << PC0);   // Set PC0 to a 1
-    _delay_ms(1000);
-    PORTC &= ~(1 << PC0);   // Set PC0 to a 0
-    _delay_ms(100);
-
 }

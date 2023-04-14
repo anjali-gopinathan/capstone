@@ -1,5 +1,4 @@
 
-
 // #define DHT11_PIN 6
 #define OUTTEMP_PIN PD2    //pin4 is PD2
 #define INTEMP_PIN PB0 // inside temp pin (pin 14) is PB0

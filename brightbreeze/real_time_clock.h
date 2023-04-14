@@ -1,15 +1,3 @@
-#include <avr/io.h>
-#include <util/delay.h>
-#include <util/twi.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-#include <math.h>
-#include <stdbool.h>
-
-#include "OnLCDLib.h"
-#include "i2c_functions.h"
 
 
 #define DS1307_Read_Mode   0xD1  // DS1307 ID in read mode
@@ -58,33 +46,33 @@ void RTC_Write_Time(uint8_t hh, uint8_t mm, uint8_t ss){
     i2c_io(DS1307_Write_Mode, write_data, 4, NULL, 0, NULL, 0);
 }
 
-int main(void){
-    LCDSetup(LCD_CURSOR_BLINK);
-    LCDClear();
-	char buffer[20];
+// int main(void){
+//     LCDSetup(LCD_CURSOR_BLINK);
+//     LCDClear();
+// 	char buffer[20];
     
-    //initialization
-    i2c_init(BDIV);
-    RTC_Write_Time(11, 35, 56); //1002 hard coding curr time
-    while(1){    
-        RTC_Read_Clock(0);	/* Read clock with second add. i.e location is 0 */
-        if (hour & TimeFormat12)	
-        {
-            sprintf(buffer, "%02d:%02d:%02d  ", bcd2decimal((hour & 0b00011111)), bcd2decimal(minute), bcd2decimal(second));
-            if(IsItPM(hour))
-                strcat(buffer, "PM");
-            else
-                strcat(buffer, "AM");
-            LCDGotoXY(1,1);
-            LCDWriteString(buffer);
-        }
+//     //initialization
+//     i2c_init(BDIV);
+//     RTC_Write_Time(11, 35, 56); //1002 hard coding curr time
+//     while(1){    
+//         RTC_Read_Clock(0);	/* Read clock with second add. i.e location is 0 */
+//         if (hour & TimeFormat12)	
+//         {
+//             sprintf(buffer, "%02d:%02d:%02d  ", bcd2decimal((hour & 0b00011111)), bcd2decimal(minute), bcd2decimal(second));
+//             if(IsItPM(hour))
+//                 strcat(buffer, "PM");
+//             else
+//                 strcat(buffer, "AM");
+//             LCDGotoXY(1,1);
+//             LCDWriteString(buffer);
+//         }
         
-        else
-        {
-            sprintf(buffer, "%02d:%02d:%02d  ", bcd2decimal((hour & 0b00011111)), bcd2decimal(minute), bcd2decimal(second));
-            LCDGotoXY(1,1);
-            LCDWriteString(buffer);
-        }
-    }
-    return 0;
-}
+//         else
+//         {
+//             sprintf(buffer, "%02d:%02d:%02d  ", bcd2decimal((hour & 0b00011111)), bcd2decimal(minute), bcd2decimal(second));
+//             LCDGotoXY(1,1);
+//             LCDWriteString(buffer);
+//         }
+//     }
+//     return 0;
+// }
