@@ -6,47 +6,27 @@
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
-
-
 #include "OnLCDLib.h"
+
+// (TSL datasheet: https://cdn-learn.adafruit.com/assets/assets/000/078/658/original/TSL2591_DS000338_6-00.pdf?1564168468)
 
 #define TCAADDR 0xE0        // address for MUX
 #define TSL2591_ADDR 0x52     // address for Light sensor (TSL)
+#define FOSC 9830400            // Clock frequency = Oscillator freq.
+#define BAUD 9600               // UART0 baud rate
+#define BDIV ((FOSC / 100000 - 16) / 2 + 1   ) // Puts I2C rate just below 100kHz
+#define INTEGRATION_TIME 400
 
 void i2c_init(uint8_t);
 uint8_t i2c_io(uint8_t, uint8_t *, uint16_t,
                uint8_t *, uint16_t, uint8_t *, uint16_t);
 void select_lightsensor(uint16_t);
 
-// Find divisors for the UART0 and I2C baud rates
-#define FOSC 9830400            // Clock frequency = Oscillator freq.
-#define BAUD 9600               // UART0 baud rate
-// #define MYUBRR FOSC/16/BAUD-1   // Value for UBRR0 register
-#define BDIV ((FOSC / 100000 - 16) / 2 + 1   ) // Puts I2C rate just below 100kHz
-
 int main(void){
 
     LCDSetup(LCD_CURSOR_BLINK);
     
-    i2c_init(BDIV);             // Initialize the I2C port
-    
-    // activate light sensor 0
-
-    // power on TSL light sensor
-    // // to send to the command register of one of the TSLs:
-    // // (see page0x12 14 of TSL datasheet: https://cdn-learn.adafruit.com/assets/assets/000/078/658/original/TSL2591_DS000338_6-00.pdf?1564168468)
-    // // 0b10100110
-    // to send to the ENABLE regsiter (beginning of page 15)
-    // 0b76543210
-    // 0b00000001
-    /*
-    SET UP I2C WITH i2c_io function
-    */
-    // uint8_t tsl_id_reg = 0x12;
-   //[ctrl register, something to send to that reg]
-
-    //_delay_ms(3000);
-
+    i2c_init(BDIV);             // Initialize the I2C port   
 
     uint16_t i;
     uint8_t wp;
@@ -111,11 +91,6 @@ int main(void){
             // C0DATAL, C0DATAH, C1DATAL and C1DATAH registers (page 21) that contain the sensor results
             wp = 0b10110100;
             i2c_io(TSL2591_ADDR, NULL,  0,  &wp,  1, rp_data, 4);
-            //rp_data is: CA 2F 71 09 
-            //rp_data is: E8 02 E5 00 -- Ch0, ch0, ch1, ch1 when uncovered
-            //rp_data is: 0D 00 06 00
-            
-            //visibleLight[channel] = rp_data[0];
 
             //taking in and combining the data bits into infared and infared+visible light
             visible_infared_light = ((uint16_t) rp_data[1] << 8) | rp_data[0]; //uppper bits OR with lower bits
@@ -125,16 +100,7 @@ int main(void){
             visible_light = visible_infared_light - infared_light;
             visibleLight[channel] = visible_light;
 
-            if(count ==0){
-                LCDGotoXY(1, 1);
-                LCDWriteInt(visible_infared_light, 5);
-                LCDGotoXY(1, 2);
-                LCDWriteInt(infared_light, 5);
-                LCDGotoXY(1,3);
-                LCDWriteInt(visible_light, 5);
-            }
-            count +=1;  
-
+            // lab room with all lights on gave value of 8755
 
             // Write 1 byte to the ENABLE to set PON but leave AEN a zero
             wp =  0b10100000;
@@ -143,15 +109,18 @@ int main(void){
 
         }
 
-        if(visibleLight[0] != visibleLight[1]){
-            // LCDHome();
-            // LCDWriteString("Light on Ch0:    ");
-            // LCDGotoXY(14, 0);
-            // LCDWriteInt(visibleLight[0], 5);  
-            
-            // LCDGotoXY(0,1);
-            // LCDWriteString("Light on Ch1:    ");
+        if(abs((int)(visibleLight[1] - visibleLight[0])) < 200){
+            LCDGotoXY(1,1);
+            LCDWriteString("basically same");
 
+        }
+        else if(visibleLight[0] < visibleLight[1]){
+            LCDGotoXY(1,1);
+            LCDWriteString("inside is brighter than outside");
+        }
+        else if(visibleLight[0] > visibleLight[1]){
+            LCDGotoXY(1,1);
+            LCDWriteString("outside is brighter than inside");
         }
         
         _delay_ms(1000);
