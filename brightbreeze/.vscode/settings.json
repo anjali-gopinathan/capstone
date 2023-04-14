@@ -2,6 +2,7 @@
     "cmake.configureOnOpen": true,
     "files.associations": {
         "stdlib.h": "c",
-        "io.h": "c"
+        "io.h": "c",
+        "i2c_functions.h": "c"
     }
 }
