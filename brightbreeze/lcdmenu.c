@@ -25,8 +25,8 @@ void LCDClearLine(uint8_t y){
 int main(void)
 {
     char* menulist[] = {      //first character of each line to be replaced by ">" character
-        //  "********************", // this line is 20 characters. after that it will scroll (200ms). see LCD_SCROLL_SPEED variable in OnLCDLib.h.
-        /*0*/  " BrightBreeze menu ",   //title row doesn't display actual content or do anything
+        //     "********************", // this line is 20 characters. after that it will scroll (200ms). see LCD_SCROLL_SPEED variable in OnLCDLib.h.
+        /*0*/  "-BrightBreeze menu-",   //title row doesn't display actual content or do anything
         /*1*/  "  __ deg F IN",   
         /*2*/  "  __ deg F OUT",
         /*3*/  "  Brighter: [in/out]",
@@ -96,7 +96,7 @@ int main(void)
             }
         
 
-            if(!down_pressed && hoveredoption < numMenuOptions-1){  // if down pressed and there's still room on menu to go down
+            if(!down_pressed && (hoveredoption < numMenuOptions-1)){  // if down pressed and there's still room on menu to go down
                 hoveredoption++;
                 if(caretRow < 4){   // if it's row 1 2 or 3. (row 4 means leave the caret on row 4 and scroll the screen)
                     caretRow++;
@@ -105,7 +105,7 @@ int main(void)
                     menu_startidx++;
                 }
             }
-            else if(!up_pressed && hoveredoption > 1){  //if up pressed and there's still room on menu to go up
+            else if(!up_pressed && (hoveredoption > 1)){  //if up pressed and there's still room on menu to go up
                 hoveredoption--;
                 if(caretRow > 1){
                     caretRow--;
