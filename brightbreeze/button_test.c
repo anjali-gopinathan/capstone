@@ -44,34 +44,6 @@ int main(void) {
                 LCDWriteString("no button pressed");
                 _delay_ms(200);
             }
-            // if(button==1){
-            //     LCDClear();
-            //     LCDGotoXY(1,1);
-            //     LCDWriteString("Button 1 pressed");
-            //     _delay_ms(500);
-            //     button=0;
-            // }
-            // else if (button==2){
-            //     LCDClear();
-            //     LCDGotoXY(1,1);
-            //     LCDWriteString("Button 2 pressed");
-            //     _delay_ms(500);
-            //     button=0;
-
-            // }
-            // else if (button ==3){
-            //     LCDClear();
-            //     LCDGotoXY(1,1);
-            //     LCDWriteString("Button 3 pressed");
-            //     _delay_ms(500);
-            //     button=0;
-            // }
-            // else{
-            //     LCDClear();
-            //     LCDGotoXY(1,1);
-            //     LCDWriteString("no button pressed");
-            //     _delay_ms(500);
-            // }
         }
 
     return 0;   /* never reached */
