@@ -40,7 +40,6 @@ int main(void)
     uint8_t numMenuOptions = sizeof(menulist)/sizeof(menulist[0]);    
     temp_sensor_init();
     light_sensor_init();
-    
     int hoveredoption = 0;
     int selectedoption = -1;    // selected option = -1 means nothing has been selected
     int caretRow = 1;
@@ -53,6 +52,9 @@ int main(void)
     bool menu_is_idle = false;
     uint8_t i;
     uint8_t menu_startidx = 0;
+    uint16_t outside_brightness;
+    uint16_t inside_brightness;
+    int brightness_status;
     while(1){
         bool up_pressed = ((PIND & (1 << 7)) == 0);    
         bool select_pressed = ((PINB & (1 << 1)) == 0);
@@ -79,18 +81,21 @@ int main(void)
                         // 0 means same, 1 means inside brighter, -1 means outside brighter
 
                         //channel 0 is outside, channel 1 is inside
-                        uint16_t outside_brightness= get_light_values(0);
-                        uint16_t inside_brightness= get_light_values(1);
-                        int brightness_status = get_lightStatus(outside_brightness, inside_brightness);
-                        if(brightness_status == 1){
-                            sprintf(menulist[i], "  Brighter: IN");
-                        }
-                        else if(brightness_status == -1){
-                            sprintf(menulist[i], "  Brighter: OUT");
-                        }
-                        else if(brightness_status == 0){
-                            sprintf(menulist[i], "  Brightness: SAME");
-                        }
+                        outside_brightness= get_light_values(0);
+                        inside_brightness= get_light_values(1);
+                        brightness_status = get_lightStatus(outside_brightness, inside_brightness);
+                        LCDGotoXY(1,4);
+                        LCDClearLine(4);
+                        LCDWriteInt(brightness_status,1);
+                        // if(brightness_status == 1){
+                        //     sprintf(menulist[i], "  Brighter: IN");
+                        // }
+                        // else if(brightness_status == -1){
+                        //     sprintf(menulist[i], "  Brighter: OUT");
+                        // }
+                        // else if(brightness_status == 0){
+                        //     sprintf(menulist[i], "  Brightness: SAME");
+                        // }
                     }
                     else if(i==4){
                         sprintf(menulist[i], "  View/set date/time");

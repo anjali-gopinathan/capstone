@@ -100,7 +100,7 @@ uint16_t get_light_values(uint16_t channel){
 
 int get_lightStatus(uint16_t outside_value, uint16_t inside_value){
         // return 0 if same brightness
-        if(abs((int)(inside_value - outside_value)) <= 1000){
+        if(abs((int)(inside_value - outside_value)) <= 2000){
             return 0;
         }
         // return 1 is inside is brighter
@@ -111,9 +111,9 @@ int get_lightStatus(uint16_t outside_value, uint16_t inside_value){
         else if(outside_value > inside_value){
             return -1;
         }
-        else{
-            return 0;
-        }
+        // else{
+        //     return 0;
+        //}
 }
 
 
