@@ -47,7 +47,7 @@ int main(void)
     
     //Fan is connected to PB7
     LCDSetup(LCD_CURSOR_BLINK);
-    
+    LCDHome();
     LCDClear();
     
     bool menu_is_idle = false;
@@ -64,6 +64,7 @@ int main(void)
             //uint8_t menu_startidx = 0;
             // uint8_t i;
             for(i = menu_startidx; i<=(menu_startidx+3); i++){  //i is menu index
+
                 if(i < numMenuOptions){
                     uint8_t row = i - menu_startidx + 1;
                     LCDGotoXY(1, row);
@@ -92,24 +93,24 @@ int main(void)
                             sprintf(menulist[i], "  Brightness: SAME");
                         }
                     }
-                    else if(i==4){
-                        sprintf(menulist[i], "  View/set date/time");
-                    }
-                    else if(i==5){
-                        sprintf(menulist[i], "  Set target temp");
-                    }
-                    else if(i==6){
-                        sprintf(menulist[i], "  Set wakeup time");
-                    }
-                    else if(i==7){
-                        sprintf(menulist[i], "  Man. toggle window");
-                    }
-                    else if(i==8){
-                        sprintf(menulist[i], "  Man. toggle blinds");
-                    }
-                    else if(i==9){
-                        sprintf(menulist[i], "  Man. toggle fan");
-                    }
+                    // else if(i==4){
+                    //     sprintf(menulist[i], "  View/set date/time");
+                    // }
+                    // else if(i==5){
+                    //     sprintf(menulist[i], "  Set target temp");
+                    // }
+                    // else if(i==6){
+                    //     sprintf(menulist[i], "  Set wakeup time");
+                    // }
+                    // else if(i==7){
+                    //     sprintf(menulist[i], "  Man. toggle window");
+                    // }
+                    // else if(i==8){
+                    //     sprintf(menulist[i], "  Man. toggle blinds");
+                    // }
+                    // else if(i==9){
+                    //     sprintf(menulist[i], "  Man. toggle fan");
+                    // }
                     LCDWriteString(menulist[i]);
 
                 }
