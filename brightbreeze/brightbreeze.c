@@ -1,3 +1,4 @@
+
 #include <avr/io.h>
 #include <util/delay.h>
 #include <util/twi.h>
@@ -17,16 +18,33 @@
 #include "temp_sensor.h"
 #include "real_time_clock.h"
 #include "fan.h"
+#include "motion_sensor.h"
 
 int main(void){
-    LCDSetup(LCD_CURSOR_BLINK);			/* Initialize LCD */
-
     uint16_t inside_brightness;
     uint16_t outside_brightness;
+    uint8_t inside_temp;
+    uint8_t outside_temp;
 
+    //uint8_t checking_state = ;  //checking state
+    //uint8_t fan_on_state = ;  //checking state
+    //uint8_t fan_off_state = ;  //checking state
+    //uint8_t light_on_state = 1;  //checking state
+    //uint8_t light_off_state = 1;  //checking state
+    //uint8_t end_of_day_state = 1;  //checking state
 
-
+    //initialize all sensors
+    LCDSetup(LCD_CURSOR_BLINK);			/* Initialize LCD */
     light_sensor_init();
+    motion_sensor_init();
+    temp_sensor_init();
+    DDRC |= 1 << DDC0;      //initialize LED as output
+    servo1__timer0_init();
+    servo2__timer2_init();
+    fan_init();
+    
+    uint8_t motion_count = 0;
+    uint8_t time_since_last_moved = 0;
 
     while(1){
 
@@ -37,23 +55,94 @@ int main(void){
         // 0 means same, 1 means inside brighter, -1 means outside brighter
         int brightness_status = get_lightStatus(outside_brightness, inside_brightness);
 
+        inside_temp = get_Temp(1);
+        outside_temp = get_Temp(0);
 
+        bool motion = check_motion();
+
+        bool fan_on_condition = ((inside_temp >= 80) && (outisde_temp >= 80) && (motion_count <= 30));
+        bool light_on_condition = (((brightness_status == 1) || (brightness_status == 0) || (curr_time >= sunset_time)) && (motion_time <= 30));
+
+        //check if it's end of day
+        if(){
+            fan_off();
+            //0 means close window
+            change_windows_timer2(0);
+            change_blinds_timer0(0);
+            turn_led_off();
+            motion_time = 0;
+
+        }
+
+        //if its not the end of the day, enter checking state
+        else{
+            
+            //check if theres motion
+            if(motion){
+                //time_since_last_moved = curr_time;
+                motion_time = 0;
+            }
+
+            else{
+               // motion_time = time_since_last_moved - curr_time;
+            }
+            
+            //check if we should turn fan on
+            if(fan_on_condition){
+                fan_on();
+                //0 means close window
+                change_windows_timer2(0);
+            }
+
+            //check if we should turn fan off
+            else if(!fan_on_condition){
+                fan_off();
+
+                //check if we should open windows instead
+                if((outside_temp < inside_temp) && (motion_time <= 30) && (outside_temp >=65)){
+                    change_windows_timer2(1);
+                }
+            }
+
+            //check if we should turn light on
+            //need to set curr_time and sunset_time
+            else if(light_on_condition){
+                turn_led_on();
+                change_blinds_timer0(0);
+            }
+
+            //check if we should turn light off
+            else if(!light_on_condition){
+                turn_led_off();
+
+                if((brightness_status == -1) && (motion_time >= 30)){
+                    change_blinds_timer0(1);
+                }
+            }
+
+            else{
+                continue;
+            }
+
+        }
 
 
         _delay_ms(500);
     }
+
+    // never reached
+    return 0;
 }
 
 
 
-//use later
-void flash_redled(){
-    //DDRC |= 1 << DDC0; 
-    PORTC &= ~(1 << PC0);   // Set PC0 to a 0
-    _delay_ms(100);
+void turn_led_on(){
     PORTC |= (1 << PC0);   // Set PC0 to a 1
-    _delay_ms(1000);
-    PORTC &= ~(1 << PC0);   // Set PC0 to a 0
     _delay_ms(100);
 
+}
+
+void turn_led_off(){
+    PORTC &= ~(1 << PC0);   // Set PC0 to a 0
+    _delay_ms(100);
 }
