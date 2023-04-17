@@ -42,7 +42,10 @@ int main(void){
     servo1__timer0_init();
     servo2__timer2_init();
     fan_init();
-    
+
+    //setting all sensors to starting state
+    turn_led_off();
+    fan_off();
     uint8_t motion_count = 0;
     uint8_t time_since_last_moved = 0;
 
