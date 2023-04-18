@@ -26,15 +26,7 @@ int main(void){
     uint8_t inside_temp;
     uint8_t outside_temp;
 
-    //uint8_t checking_state = ;  //checking state
-    //uint8_t fan_on_state = ;  //checking state
-    //uint8_t fan_off_state = ;  //checking state
-    //uint8_t light_on_state = 1;  //checking state
-    //uint8_t light_off_state = 1;  //checking state
-    //uint8_t end_of_day_state = 1;  //checking state
-
     //initialize all sensors
-    LCDSetup(LCD_CURSOR_BLINK);			/* Initialize LCD */
     light_sensor_init();
     motion_sensor_init();
     temp_sensor_init();
@@ -46,8 +38,11 @@ int main(void){
     //setting all sensors to starting state
     turn_led_off();
     fan_off();
-    uint8_t motion_count = 0;
+    change_windows_timer2(0);
+    change_blinds_timer0(0);
+    uint8_t motion_time = 0;
     uint8_t time_since_last_moved = 0;
+    uint8_t sunset_time = 0;
 
     while(1){
 
@@ -63,11 +58,18 @@ int main(void){
 
         bool motion = check_motion();
 
-        bool fan_on_condition = ((inside_temp >= 80) && (outisde_temp >= 80) && (motion_count <= 30));
+        bool fan_on_condition = ((inside_temp >= 80) && (outisde_temp >= 80) && (motion_time <= 30));
+        
+        //need to set sunset time
         bool light_on_condition = (((brightness_status == 1) || (brightness_status == 0) || (curr_time >= sunset_time)) && (motion_time <= 30));
+        
+        
+        // need to set the time variables
+        bool end_of_day_condition = ((start_time > curr_time) && (end_time < curr_time));
+        time_since_last_moved = curr_time;
 
         //check if it's end of day
-        if(){
+        if(end_of_day_condition){
             fan_off();
             //0 means close window
             change_windows_timer2(0);
@@ -109,7 +111,7 @@ int main(void){
 
             //check if we should turn light on
             //need to set curr_time and sunset_time
-            else if(light_on_condition){
+            if(light_on_condition){
                 turn_led_on();
                 change_blinds_timer0(0);
             }
@@ -121,10 +123,6 @@ int main(void){
                 if((brightness_status == -1) && (motion_time >= 30)){
                     change_blinds_timer0(1);
                 }
-            }
-
-            else{
-                continue;
             }
 
         }

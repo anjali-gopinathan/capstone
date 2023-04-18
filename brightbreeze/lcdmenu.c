@@ -10,15 +10,18 @@
 // #include <time.h>
 
 #include "OnLCDLib.h"
+
+//Our libraries
 #include "i2c_functions.h"
-#include "temp_sensor.h"
 #include "light_sensors.h"
+#include "temp_sensor.h"
 #include "real_time_clock.h"
+#include "fan.h"
+#include "motion_sensor.h"
 
 // #define STATE_INIT 0;
 // #define STATE_SCROLL 1;
 // const char* BLANK_20CHAR = "                    ";
-bool init_timeScreen = false;
 char buffer[20];
 
 
@@ -33,6 +36,10 @@ uint16_t outside_brightness;
 uint16_t inside_brightness;
 int brightness_status;
 
+//for setTimeScreen
+uint8_t hr, min, hr_userSet, min_userSet;
+char amOrPm, amOrPm_userSet;
+bool settingMin, settingHour, settingAMPM, settingTime, init_timeScreen = false;
 
 void setTimeScreen();
 void setTargetTemp();
@@ -108,24 +115,22 @@ void setTimeScreen(){
     //If the cursor is on the msb, select will set the time and return to the main menu
     // LCDClear();                    
     LCDClear();
-    LCDHome();
 
-    RTC_Read_Clock(0);
-    uint8_t hr, min, hr_userSet, min_userSet;
-    char amOrPm, amOrPm_userSet;
-    if(init_timeScreen){
-        hr = bcd2decimal((hour & 0b00011111));
-        min = bcd2decimal(minute);
-        amOrPm = 'P';
-        caretRow = 2;
-    }
-    hr_userSet = hr, min_userSet = min;
-    amOrPm_userSet = amOrPm;
-
+    hr = bcd2decimal((hour & 0b00011111));
+    min = bcd2decimal(minute);
     if (hour & TimeFormat12){
         if(IsItPM(hour)) amOrPm = 'P';
         else amOrPm = 'A';
     }
+    caretRow = 2;
+    settingMin = false; 
+    settingHour = false; 
+    settingAMPM = false;
+    settingTime = (settingMin || settingHour || settingAMPM);
+    
+    hr_userSet = hr, min_userSet = min;
+    amOrPm_userSet = amOrPm;
+
     sprintf(buffer, "  Curr time: %02d:%02d%cM", hr, min, amOrPm);
     LCDHome();
     LCDWriteString(buffer);
@@ -134,78 +139,98 @@ void setTimeScreen(){
     LCDWriteString(buffer);
     LCDGotoXY(1,3);
     LCDWriteString("  Go back");
-    //"  Curr time: HH:MMAM"
-    
-    LCDGotoXY(1,caretRow);
-    LCDWriteString(">");
-    
 
-    if(down_pressed()&&(caretRow==2)){ // if down pressed and there's still room on menu to go down
-        caretRow++;
+    while(1){
+        //update curr time on the first row
+        RTC_Read_Clock(0);
+        hr = bcd2decimal((hour & 0b00011111));
+        min = bcd2decimal(minute);
+        if (hour & TimeFormat12){
+            if(IsItPM(hour)) amOrPm = 'P';
+            else amOrPm = 'A';
+        }
+        snprintf(buffer, 20, "  Curr time: %02d:%02d%cM", hr, min, amOrPm);
+        LCDHome();
+        LCDWriteString(buffer);
+
+        //update caret print
         LCDGotoXY(1,caretRow);
         LCDWriteString(">");
-    }
-    if(up_pressed()&&(caretRow==3)){
-        caretRow--;
-        LCDGotoXY(1,caretRow);
-        LCDWriteString(">");
-    }
-    
-    if((caretRow==3)&&(select_pressed())){
-        // go back call menu function
-        mainMenu();
-        //return; // leave function 
-    }
 
-
-    LCDGotoXY(16,2);    // minutes
-    bool settingMin = true, settingHour = false, settingAMPM = false;
-    if(up_pressed()){
-        if(settingMin){
-            if(min_userSet == 59) min_userSet = 0;
-            else min_userSet++;
-        }
-        else if(settingHour){
-            if(hr_userSet == 12) hr_userSet = 1;
-            else hr_userSet++;
-        }
-        else if(settingAMPM){
-            if(amOrPm_userSet == 'A') amOrPm_userSet = 'P';
-            else amOrPm_userSet = 'A';
-        }
-    }
-    else if(down_pressed()){
-        if(settingMin){
-            if(min_userSet == 0) min_userSet = 59;
-            else min_userSet--;
-        }
-        else if(settingHour){
-            if(hr_userSet == 1) hr_userSet = 12;
-            else hr_userSet--;
-        }
-        else if(settingAMPM){
-            if(amOrPm_userSet == 'A') amOrPm_userSet = 'P';
-            else amOrPm_userSet = 'A';
-        }
-    }
-    else if(select_pressed()){
         
-        if(settingMin){ // if done min, move to hours
-            settingMin = false;
-            settingHour = true;
-            settingAMPM = false;
-            LCDGotoXY(13,1);    // hours ones digit
+        if(caretRow == 2){
+            if(down_pressed()){ // if down pressed and there's still room on menu to go down
+                caretRow++;
+            }
+            else if(select_pressed()){
+                settingTime = true;
+            }
         }
-        else if(settingHour){   // if done hours, move to AM/PM
-            settingHour = false;
-            settingMin = false;
-            settingAMPM = true;
+        else if(caretRow == 3){
+            if(up_pressed()){
+                caretRow--;
+            }
+            
+            if(select_pressed()){
+                break;
+            }
         }
-        else if(settingAMPM){
-            //if select is pressed while we're setting AM/PM, we're done setting the time!
-            settingAMPM = false;
-        }           
+
+        while(settingTime){
+            LCDGotoXY(17,2);    // minutes
+            if(up_pressed()){
+                if(settingMin){
+                    if(min_userSet == 59) min_userSet = 0;
+                    else min_userSet++;
+                }
+                else if(settingHour){
+                    if(hr_userSet == 12) hr_userSet = 1;
+                    else hr_userSet++;
+                }
+                else if(settingAMPM){
+                    if(amOrPm_userSet == 'A') amOrPm_userSet = 'P';
+                    else amOrPm_userSet = 'A';
+                }
+            }
+            else if(down_pressed()){
+                if(settingMin){
+                    if(min_userSet == 0) min_userSet = 59;
+                    else min_userSet--;
+                }
+                else if(settingHour){
+                    if(hr_userSet == 1) hr_userSet = 12;
+                    else hr_userSet--;
+                }
+                else if(settingAMPM){
+                    if(amOrPm_userSet == 'A') amOrPm_userSet = 'P';
+                    else amOrPm_userSet = 'A';
+                }
+            }
+            else if(select_pressed()){
+                
+                if(settingMin){ // if done min, move to hours
+                    settingMin = false;
+                    settingHour = true;
+                }
+                else if(settingHour){   // if done hours, move to AM/PM
+                    LCDGotoXY(14,2);    // hours ones digit
+                    settingHour = false;
+                    settingAMPM = true;
+                }
+                else if(settingAMPM){
+                    //if select is pressed while we're setting AM/PM, we're done setting the time!
+                    LCDGotoXY(18,1);    // AM/PM
+                    settingAMPM = false;
+                    settingTime = false;
+                    caretRow = 3;
+                    break;
+                }         
+            }
+        }
     }
+    // only gets here if back button is pressed (break statement above)
+    mainMenu();
+
         
 
 
@@ -227,11 +252,11 @@ void setTargetTemp(){
     LCDGotoXY(2, 2);
     LCDWriteString(buffer);
  
-        LCDGotoXY(2,3);
-        LCDWriteString("Go back");
+    LCDGotoXY(2,3);
+    LCDWriteString("Go back");
 
-        LCDGotoXY(1,caretRow);
-        LCDWriteString(">");
+    LCDGotoXY(1,caretRow);
+    LCDWriteString(">");
     while(1){
 
         // int temp = get_Temp(1);

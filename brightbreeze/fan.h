@@ -1,4 +1,5 @@
 
+
 //ground of fan goes to third pin on transistor
 //red wire goes to 12v
 // ground the black 12v
