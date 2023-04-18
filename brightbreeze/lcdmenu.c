@@ -39,7 +39,7 @@ int brightness_status;
 //for setTimeScreen
 uint8_t hr, min, hr_userSet, min_userSet;
 char amOrPm, amOrPm_userSet;
-bool settingMin, settingHour, settingAMPM, settingTime, init_timeScreen = false;
+bool settingMin, settingHour, settingAMPM, settingTime;//, init_timeScreen = false;
 
 void setTimeScreen();
 void setTargetTemp();
@@ -71,35 +71,12 @@ int main(void)
 
     LCDHome();
     
-    //mainMenu();
-    // char* menulist[] = {      //first character of each line to be replaced by ">" character
-    //     //     "********************", // this line is 20 characters. after that it will scroll (200ms). see LCD_SCROLL_SPEED variable in OnLCDLib.h.
-    //     /*0*/  " -BrightBreeze menu-",   //title row doesn't display actual content or do anything
-    //     /*1*/  "  __ deg F IN       ",   
-    //     /*2*/  "  __ deg F OUT      ",
-    //     /*3*/  "  Brighter: [in/out]",
-    //     /*4*/  "  Set time          ",   //has another screen
-    //     /*5*/  "  Set target temp   ",
-    //     /*6*/  "  Set wakeup time   ",      //has another screen
-    //     /*7*/  "  Set bedtime       ", // Man. toggle window
-    //     // /*8*/  "  Man. toggle blinds",
-    //     // /*9*/  "  Man. toggle fan   "
-    // };
-    // uint8_t numMenuOptions = sizeof(menulist)/sizeof(menulist[0]);    
-    temp_sensor_init();
-    light_sensor_init();
-
-    //for RTC
-    i2c_init(BDIV);
-    RTC_Write_Time(11, 35, 56); //1002 hard coding curr time
-
 
 
     
     while(1){
 
         mainMenu();
-
 
         // standard state machine for adjusting blinds and windows here
         _delay_ms(1000);
@@ -113,23 +90,29 @@ void setTimeScreen(){
     //Pressing up/down should increment/decrement the time
     //Select will set the time for that digit and move to next most significant digit
     //If the cursor is on the msb, select will set the time and return to the main menu
-    // LCDClear();                    
     LCDClear();
-
+    //get the current time
+    RTC_Read_Clock(0);
     hr = bcd2decimal((hour & 0b00011111));
     min = bcd2decimal(minute);
     if (hour & TimeFormat12){
         if(IsItPM(hour)) amOrPm = 'P';
         else amOrPm = 'A';
     }
-    caretRow = 2;
+    else{amOrPm='A';}   //hardcoded to AM
+    //done gettting current time
+    //make a copy of each of these variables
+    hr_userSet = hr;
+    min_userSet = min;
+    amOrPm_userSet = amOrPm;
+ 
+    int setTime_caretRow = 2;
     settingMin = false; 
+    
     settingHour = false; 
     settingAMPM = false;
     settingTime = (settingMin || settingHour || settingAMPM);
     
-    hr_userSet = hr, min_userSet = min;
-    amOrPm_userSet = amOrPm;
 
     sprintf(buffer, "  Curr time: %02d:%02d%cM", hr, min, amOrPm);
     LCDHome();
@@ -138,8 +121,9 @@ void setTimeScreen(){
     sprintf(buffer, "  Set time:  %02d:%02d%cM", hr_userSet, min_userSet, amOrPm_userSet);
     LCDWriteString(buffer);
     LCDGotoXY(1,3);
-    LCDWriteString("  Go back");
+    LCDWriteString("  Go back           ");
 
+    // bool isRunning = true;
     while(1){
         //update curr time on the first row
         RTC_Read_Clock(0);
@@ -149,34 +133,60 @@ void setTimeScreen(){
             if(IsItPM(hour)) amOrPm = 'P';
             else amOrPm = 'A';
         }
-        snprintf(buffer, 20, "  Curr time: %02d:%02d%cM", hr, min, amOrPm);
+        sprintf(buffer, "  Curr time: %02d:%02d%cM", hr, min, amOrPm);
         LCDHome();
         LCDWriteString(buffer);
-
+        //done updating curr time on first row
         //update caret print
-        LCDGotoXY(1,caretRow);
+        LCDGotoXY(1,setTime_caretRow);
         LCDWriteString(">");
-
         
-        if(caretRow == 2){
+        if(setTime_caretRow == 2){
+            _delay_ms(1000);
             if(down_pressed()){ // if down pressed and there's still room on menu to go down
-                caretRow++;
+                setTime_caretRow++;
+                LCDGotoXY(1,setTime_caretRow-1);
+                LCDWriteString(" ");
             }
             else if(select_pressed()){
                 settingTime = true;
+                settingMin = true;
             }
+         
         }
-        else if(caretRow == 3){
+        
+        else if(setTime_caretRow == 3){
+            _delay_ms(1000);
             if(up_pressed()){
-                caretRow--;
+                setTime_caretRow--;
+                LCDGotoXY(1,setTime_caretRow+1);
+                LCDWriteString(" ");
             }
             
-            if(select_pressed()){
+            else if(select_pressed()){
+                LCDGotoXY(1,setTime_caretRow);
+                LCDWriteString(" ");
+                setTime_caretRow=1;
                 break;
             }
         }
 
         while(settingTime){
+            _delay_ms(1000);
+            //add caret in space before time
+            // LCDGotoXY(13,2);
+            // LCDWriteString(">");
+
+            // update set time on second row
+            sprintf(buffer, "  Set time: %02d:%02d%cM", hr_userSet, min_userSet, amOrPm_userSet);
+            LCDGotoXY(1,2);
+            LCDWriteString(buffer);
+
+            // update set time on second row
+            // sprintf(buffer, "  Set time: %02d:%02d%cM", hr_userSet, min_userSet, amOrPm_userSet);
+            // LCDGotoXY(1,3);
+            // LCDWriteString(buffer);
+
             LCDGotoXY(17,2);    // minutes
             if(up_pressed()){
                 if(settingMin){
@@ -186,10 +196,13 @@ void setTimeScreen(){
                 else if(settingHour){
                     if(hr_userSet == 12) hr_userSet = 1;
                     else hr_userSet++;
+
+          
                 }
                 else if(settingAMPM){
                     if(amOrPm_userSet == 'A') amOrPm_userSet = 'P';
                     else amOrPm_userSet = 'A';
+
                 }
             }
             else if(down_pressed()){
@@ -222,18 +235,22 @@ void setTimeScreen(){
                     LCDGotoXY(18,1);    // AM/PM
                     settingAMPM = false;
                     settingTime = false;
-                    caretRow = 3;
+                    setTime_caretRow = 2;
+                    //add caret in space before time
+                    LCDGotoXY(13,2);
+                    LCDWriteString(" ");
                     break;
                 }         
             }
+           //_delay_ms(1000);
         }
+
+       //_delay_ms(1000);
     }
     // only gets here if back button is pressed (break statement above)
-    mainMenu();
+  // mainMenu();
 
-        
-
-
+    _delay_ms(500);
 }
 
 
@@ -429,7 +446,8 @@ void mainMenu(){
                     // for(i=1; i<=4; i++){    //clear all rows
                     //     LCDClearLine(i);
                     // }
-                    init_timeScreen = true;
+                    // init_timeScreen = true;
+                    // LCDWriteInt(caretRow, 1);
                     setTimeScreen();
                 }
                 else if (selectedoption==5){
