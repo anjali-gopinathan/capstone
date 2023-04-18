@@ -61,8 +61,17 @@ int main(void)
 
     //for RTC
     i2c_init(BDIV);
-    RTC_Write_Time(11, 35, 56); //1002 hard coding curr time
-
+    RTC_Write_Time(12, 00, 00); //1002 hard coding curr time
+    
+    //get the current time
+    RTC_Read_Clock(0);
+    hr = bcd2decimal((hour & 0b00011111));
+    min = bcd2decimal(minute);
+    if (hour & TimeFormat12){
+        if(IsItPM(hour)) amOrPm = 'P';
+        else amOrPm = 'A';
+    }
+    else{amOrPm='A';}   //hardcoded to AM
     
     //Fan is connected to PB7
     LCDSetup(LCD_CURSOR_NONE);
@@ -91,16 +100,6 @@ void setTimeScreen(){
     //Select will set the time for that digit and move to next most significant digit
     //If the cursor is on the msb, select will set the time and return to the main menu
     LCDClear();
-    //get the current time
-    RTC_Read_Clock(0);
-    hr = bcd2decimal((hour & 0b00011111));
-    min = bcd2decimal(minute);
-    if (hour & TimeFormat12){
-        if(IsItPM(hour)) amOrPm = 'P';
-        else amOrPm = 'A';
-    }
-    else{amOrPm='A';}   //hardcoded to AM
-    //done gettting current time
     //make a copy of each of these variables
     hr_userSet = hr;
     min_userSet = min;
@@ -115,10 +114,12 @@ void setTimeScreen(){
     
 
     sprintf(buffer, "  Curr time: %02d:%02d%cM", hr, min, amOrPm);
+    //  Curr time: HH:MMAM
     LCDHome();
     LCDWriteString(buffer);
     LCDGotoXY(1,2);
     sprintf(buffer, "  Set time:  %02d:%02d%cM", hr_userSet, min_userSet, amOrPm_userSet);
+    //  Set time:  HH:MMAM
     LCDWriteString(buffer);
     LCDGotoXY(1,3);
     LCDWriteString("  Go back           ");
@@ -126,13 +127,6 @@ void setTimeScreen(){
     // bool isRunning = true;
     while(1){
         //update curr time on the first row
-        RTC_Read_Clock(0);
-        hr = bcd2decimal((hour & 0b00011111));
-        min = bcd2decimal(minute);
-        if (hour & TimeFormat12){
-            if(IsItPM(hour)) amOrPm = 'P';
-            else amOrPm = 'A';
-        }
         sprintf(buffer, "  Curr time: %02d:%02d%cM", hr, min, amOrPm);
         LCDHome();
         LCDWriteString(buffer);
@@ -173,19 +167,12 @@ void setTimeScreen(){
 
         while(settingTime){
             _delay_ms(1000);
-            //add caret in space before time
-            // LCDGotoXY(13,2);
-            // LCDWriteString(">");
 
             // update set time on second row
-            sprintf(buffer, "  Set time: %02d:%02d%cM", hr_userSet, min_userSet, amOrPm_userSet);
+            sprintf(buffer, "  Set time:  %02d:%02d%cM", hr_userSet, min_userSet, amOrPm_userSet);
+            //  Set time:  HH:MMAM
             LCDGotoXY(1,2);
             LCDWriteString(buffer);
-
-            // update set time on second row
-            // sprintf(buffer, "  Set time: %02d:%02d%cM", hr_userSet, min_userSet, amOrPm_userSet);
-            // LCDGotoXY(1,3);
-            // LCDWriteString(buffer);
 
             LCDGotoXY(17,2);    // minutes
             if(up_pressed()){
@@ -236,19 +223,20 @@ void setTimeScreen(){
                     settingAMPM = false;
                     settingTime = false;
                     setTime_caretRow = 2;
-                    //add caret in space before time
-                    LCDGotoXY(13,2);
-                    LCDWriteString(" ");
+                    // //add caret in space before time
+                    // LCDGotoXY(13,2);
+                    // LCDWriteString(" ");
                     break;
                 }         
             }
-           //_delay_ms(1000);
+       
         }
 
-       //_delay_ms(1000);
+        hr = hr_userSet;
+        min = min_userSet;
+        amOrPm = amOrPm_userSet;
+
     }
-    // only gets here if back button is pressed (break statement above)
-  // mainMenu();
 
     _delay_ms(500);
 }
