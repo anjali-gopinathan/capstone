@@ -40,8 +40,9 @@ int brightness_status;
 uint8_t hr, min;
 uint8_t bedtime_hr, bedtime_min, wakeup_hr, wakeup_min ;
 char amOrPm;
-char bedtime_amOrPm, wakeup_apOrPm;
+char bedtime_amOrPm, wakeup_amOrPm;
 bool settingMin, settingHour, settingAMPM, settingTime;//, init_timeScreen = false;
+uint8_t target_temp;
 
 void setTimeScreen( uint8_t *hr, uint8_t *min, char *amOrPm);
 void setTargetTemp();
@@ -75,6 +76,17 @@ int main(void)
     }
     else{amOrPm='A';}   //hardcoded to AM
     
+    bedtime_hr = hr;
+    bedtime_min = min;
+    bedtime_amOrPm = amOrPm;
+
+    wakeup_hr = hr;
+    wakeup_min = min;
+    wakeup_amOrPm = amOrPm;
+
+    target_temp = 75;
+
+
     //Fan is connected to PB7
     LCDSetup(LCD_CURSOR_NONE);
     
@@ -97,6 +109,7 @@ void setTimeScreen( uint8_t *hr, uint8_t *min, char *amOrPm){  //1002 maybe chan
     //Select will set the time for that digit and move to next most significant digit
     //If the cursor is on the msb, select will set the time and return to the main menu
     LCDClear();
+    
     
     //make a copy of each of these variables
     uint8_t  hr_userSet, min_userSet;
@@ -420,8 +433,20 @@ void mainMenu(){
                     
                 }
                 else if (selectedoption==4){
+                    //here 
+                    
+                    RTC_Read_Clock(0);
+                    hr = bcd2decimal((hour & 0b00011111));
+                    min = bcd2decimal(minute);
+                    if (hour & TimeFormat12){
+                        if(IsItPM(hour)) amOrPm = 'P';
+                        else amOrPm = 'A';
+                    }
+                    else{amOrPm='A';}   //hardcoded to AM
 
+                    //call setTimeScreen 
                     setTimeScreen(&hr, &min, &amOrPm);
+                    RTC_Write_Time(hr, min, 0);
                 }
                 else if (selectedoption==5){
                     // set target temp 
@@ -429,9 +454,11 @@ void mainMenu(){
                     // now compare target temp with current temp and decide if to open a window
                 }
                 else if (selectedoption==6){
+                    setTimeScreen(&wakeup_hr, &wakeup_min, &wakeup_amOrPm);
                     
                 }
                 else if (selectedoption==7){
+                    setTimeScreen(&bedtime_hr, &bedtime_min, &bedtime_amOrPm);
                     
                 }
                 else if (selectedoption==8){
