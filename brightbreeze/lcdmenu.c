@@ -43,6 +43,7 @@ char amOrPm;
 char bedtime_amOrPm, wakeup_amOrPm;
 char bedtime_amOrPm, wakeup_amOrPm;
 bool settingMin, settingHour, settingAMPM, settingTime;//, init_timeScreen = false;
+
 uint8_t target_temp;
 
 void setTimeScreen( uint8_t *hr, uint8_t *min, char *amOrPm);
@@ -63,7 +64,7 @@ int main(void)
     temp_sensor_init();
     light_sensor_init();
 
-    //for RTC
+    //for Real Time Clock
     i2c_init(BDIV);
     RTC_Write_Time(12, 00, 00); //initial curr time is 12:00:00
     
@@ -96,7 +97,6 @@ int main(void)
     LCDHome();
 
     while(1){
-        inside_temp = get_temp(1); //1 is the inside temp sensor
         mainMenu();
         // standard state machine for adjusting blinds and windows here
         _delay_ms(1000);
@@ -129,12 +129,12 @@ void setTimeScreen( uint8_t *hr, uint8_t *min, char *amOrPm){  //1002 maybe chan
     settingTime = (settingMin || settingHour || settingAMPM);
     
 
-    sprintf(buffer, "  Curr time: %02d:%02d%cM", *hr, *min, *amOrPm);
+    sprintf(buffer, "  Curr time: %02u:%02u%cM", *hr, *min, *amOrPm);
     //  Curr time: HH:MMAM
     LCDHome();
     LCDWriteString(buffer);
     LCDGotoXY(1,2);
-    sprintf(buffer, "  Set time:  %02d:%02d%cM", hr_userSet, min_userSet, amOrPm_userSet);
+    sprintf(buffer, "  Set time:  %02u:%02u%cM", hr_userSet, min_userSet, amOrPm_userSet);
     //  Set time:  HH:MMAM
     LCDWriteString(buffer);
     LCDGotoXY(1,3);
@@ -143,7 +143,7 @@ void setTimeScreen( uint8_t *hr, uint8_t *min, char *amOrPm){  //1002 maybe chan
     // bool isRunning = true;
     while(1){
         //update curr time on the first row
-        sprintf(buffer, "  Curr time: %02d:%02d%cM", *hr, *min, *amOrPm);
+        sprintf(buffer, "  Curr time: %02u:%02u%cM", *hr, *min, *amOrPm);
         LCDHome();
         LCDWriteString(buffer);
         //done updating curr time on first row
@@ -184,7 +184,7 @@ void setTimeScreen( uint8_t *hr, uint8_t *min, char *amOrPm){  //1002 maybe chan
             _delay_ms(1000);
 
             // update set time on second row
-            sprintf(buffer, "  Set time:  %02d:%02d%cM", hr_userSet, min_userSet, amOrPm_userSet);
+            sprintf(buffer, "  Set time:  %02u:%02u%cM", hr_userSet, min_userSet, amOrPm_userSet);
             //  Set time:  HH:MMAM
             LCDGotoXY(1,2);
             LCDWriteString(buffer);
@@ -256,17 +256,14 @@ void setTargetTemp(){
     LCDClear();
     
     //make a copy of each of these variables
-    //uint8_t  temp_userSet = target_temp;
- 
     int setTime_caretRow = 2;
     bool settingTemp = false; 
-    
 
-    sprintf(buffer, "  Curr temp: %02d", inside_temp);
+    sprintf(buffer, "  Curr temp: %02u", get_Temp(1));
     LCDHome();
     LCDWriteString(buffer);
     LCDGotoXY(1,2);
-    sprintf(buffer, "  Target temp: %02d", target_temp);
+    sprintf(buffer, "  Target temp: %02u", target_temp);
 
     LCDWriteString(buffer);
     LCDGotoXY(1,3);
@@ -281,9 +278,9 @@ void setTargetTemp(){
         if(setTime_caretRow == 2){
             _delay_ms(1000);
             if(down_pressed()){ // if down pressed and there's still room on menu to go down
-                setTime_caretRow++;
-                LCDGotoXY(1,setTime_caretRow-1);
+                LCDGotoXY(1,setTime_caretRow);
                 LCDWriteString(" ");
+                setTime_caretRow++;
             }
             else if(select_pressed()){
                 settingTemp = true;
@@ -301,7 +298,6 @@ void setTargetTemp(){
             else if(select_pressed()){
                 LCDGotoXY(1,setTime_caretRow);
                 LCDWriteString(" ");
-                setTime_caretRow=1;
                 break;
             }
         }
@@ -310,11 +306,11 @@ void setTargetTemp(){
             _delay_ms(1000);
 
             // update set temp on second row
-            sprintf(buffer, "  Target temp: %02d", target_temp);
+            sprintf(buffer, "  Target temp: %02u", target_temp);
             LCDGotoXY(1,2);
             LCDWriteString(buffer);
 
-            LCDGotoXY(17,2);    // minutes
+            LCDGotoXY(16,2);    // minutes
             if(up_pressed()){
                 target_temp ++;
             }
@@ -322,6 +318,8 @@ void setTargetTemp(){
                target_temp--;
             }
             else if(select_pressed()){
+                setTime_caretRow = 2;
+                settingTemp = false;
                 break;        
             }
         }
@@ -330,6 +328,7 @@ void setTargetTemp(){
 
     _delay_ms(500);
 }
+
 
 void mainMenu(){
     char* menulist[] = {      //first character of each line to be replaced by ">" character
@@ -354,10 +353,10 @@ void mainMenu(){
                     uint8_t row = i - menu_startidx + 1;
                     // LCDWriteString(">")
                     if(i == 1){ //menu index 1 is inside temp
-                        sprintf(menulist[i], "  %2d deg F IN       ", get_temp(1));
+                        sprintf(menulist[i], "  %2u deg F IN       ", get_Temp(1));
                     }
                     else if(i == 2){    //menu index 2 is outside temp
-                        sprintf(menulist[i], "  %2d deg F OUT      ", get_temp(0));
+                        sprintf(menulist[i], "  %2u deg F OUT      ", get_Temp(0));
                     }
                     else if(i == 3){    //menu index 3 is brighter: in/out
                         // 0 means same, 1 means inside brighter, -1 means outside brighter
@@ -431,7 +430,7 @@ void mainMenu(){
                 }
                 else if (selectedoption==5){
                     // set target temp 
-                    //setTargetTemp();
+                    setTargetTemp();
                     // now compare target temp with current temp and decide if to open a window
                 }
                 else if (selectedoption==6){
