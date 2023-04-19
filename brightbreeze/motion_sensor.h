@@ -1,6 +1,3 @@
-#include <avr/io.h>
-#include <util/delay.h>
- 
 int check_motion(){
     bool motion_detected = ((PIND & (1 << PD4)));
     return (int)motion_detected;

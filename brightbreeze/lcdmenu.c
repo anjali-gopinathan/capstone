@@ -7,8 +7,8 @@
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
-// #include <time.h>
 
+//LCD Library
 #include "OnLCDLib.h"
 
 //Our libraries
@@ -40,8 +40,12 @@ int brightness_status;
 uint8_t hr, min;
 uint8_t bedtime_hr, bedtime_min, wakeup_hr, wakeup_min ;
 char amOrPm;
-char bedtime_amOrPm, wakeup_apOrPm;
+char bedtime_amOrPm, wakeup_amOrPm;
 bool settingMin, settingHour, settingAMPM, settingTime;//, init_timeScreen = false;
+
+
+//inside temp
+int inside_temp, target_temp;
 
 void setTimeScreen( uint8_t *hr, uint8_t *min, char *amOrPm);
 void setTargetTemp();
@@ -74,7 +78,18 @@ int main(void)
         else amOrPm = 'A';
     }
     else{amOrPm='A';}   //hardcoded to AM
-    
+
+    bedtime_hr = hr;
+    bedtime_min = min;
+    bedtime_amOrPm = amOrPm;
+
+    wakeup_hr = hr;
+    wakeup_min = min;
+    wakeup_amOrPm = amOrPm;
+
+    target_temp = 75;
+
+
     //Fan is connected to PB7
     LCDSetup(LCD_CURSOR_NONE);
     
@@ -83,6 +98,7 @@ int main(void)
     LCDHome();
 
     while(1){
+        inside_temp = get_temp(1); //1 is the inside temp sensor
         mainMenu();
         // standard state machine for adjusting blinds and windows here
         _delay_ms(1000);
@@ -98,6 +114,15 @@ void setTimeScreen( uint8_t *hr, uint8_t *min, char *amOrPm){  //1002 maybe chan
     //If the cursor is on the msb, select will set the time and return to the main menu
     LCDClear();
     
+    RTC_Read_Clock(0);
+    *hr = bcd2decimal((hour & 0b00011111));
+    *min = bcd2decimal(minute);
+    if (hour & TimeFormat12){
+        if(IsItPM(hour)) *amOrPm = 'P';
+        else *amOrPm = 'A';
+    }
+    else{*amOrPm='A';}   //hardcoded to AM
+
     //make a copy of each of these variables
     uint8_t  hr_userSet, min_userSet;
     char amOrPm_userSet;
@@ -238,100 +263,82 @@ void setTimeScreen( uint8_t *hr, uint8_t *min, char *amOrPm){  //1002 maybe chan
 
 
 void setTargetTemp(){
-    //LCDWriteString("Set target temp: ");
     LCDClear();
-    caretRow = 2; 
-
-    int temp = get_Temp(1);
-
-    LCDGotoXY(2, 1);
-    sprintf(buffer, "Current temp: %2d", temp);
-    LCDWriteString(buffer);
-
-    sprintf(buffer, "Set target:  %2d", temp);
-    LCDGotoXY(2, 2);
-    LCDWriteString(buffer);
+    
+    //make a copy of each of these variables
+    //uint8_t  temp_userSet = target_temp;
  
-    LCDGotoXY(2,3);
-    LCDWriteString("Go back");
+    int setTime_caretRow = 2;
+    bool settingTemp = false; 
+    
 
-    LCDGotoXY(1,caretRow);
-    LCDWriteString(">");
+    sprintf(buffer, "  Curr temp: %02d", inside_temp);
+    LCDHome();
+    LCDWriteString(buffer);
+    LCDGotoXY(1,2);
+    sprintf(buffer, "  Target temp: %02d", target_temp);
+
+    LCDWriteString(buffer);
+    LCDGotoXY(1,3);
+    LCDWriteString("  Go back           ");
+
+    // bool isRunning = true;
     while(1){
+        //update caret print
+        LCDGotoXY(1,setTime_caretRow);
+        LCDWriteString(">");
+        
+        if(setTime_caretRow == 2){
+            _delay_ms(1000);
+            if(down_pressed()){ // if down pressed and there's still room on menu to go down
+                setTime_caretRow++;
+                LCDGotoXY(1,setTime_caretRow-1);
+                LCDWriteString(" ");
+            }
+            else if(select_pressed()){
+                settingTemp = true;
+            }         
+        }
+        
+        else if(setTime_caretRow == 3){
+            _delay_ms(1000);
+            if(up_pressed()){
+                setTime_caretRow--;
+                LCDGotoXY(1,setTime_caretRow+1);
+                LCDWriteString(" ");
+            }
+            
+            else if(select_pressed()){
+                LCDGotoXY(1,setTime_caretRow);
+                LCDWriteString(" ");
+                setTime_caretRow=1;
+                break;
+            }
+        }
 
-        // int temp = get_Temp(1);
-        // LCDGotoXY(2, 1);
-        // sprintf(buffer, "Current temp: %2d", temp);
-        // LCDWriteString(buffer);
+        while(settingTemp){
+            _delay_ms(1000);
 
-        // sprintf(buffer, "Set target:  %2d", temp);
-        // LCDGotoXY(2, 2);
-        // LCDWriteString(buffer);
- 
-        // LCDGotoXY(2,3);
-        // LCDWriteString("Go back");
+            // update set temp on second row
+            sprintf(buffer, "  Target temp: %02d", target_temp);
+            LCDGotoXY(1,2);
+            LCDWriteString(buffer);
 
-        // LCDGotoXY(1,caretRow);
-        // LCDWriteString(">");
+            LCDGotoXY(17,2);    // minutes
+            if(up_pressed()){
+                target_temp ++;
+            }
+            else if(down_pressed()){
+               target_temp--;
+            }
+            else if(select_pressed()){
+                break;        
+            }
+        }
 
     }
 
-    // while(1){
-    //     LCDClearLine(1);
-    //     LCDGotoXY(1,caretRow);
-    //     LCDWriteString("hellooo");
-    //     // temp = get_Temp(1);
-        
-    //     // LCDGotoXY(2, 1);
-    //     // sprintf(buffer, "Current temp: %2d", temp);
-    //     // LCDWriteString(buffer);
-
-    //     // sprintf(buffer, "Set target: %2d", targetTemp);
-    //     // LCDGotoXY(2, 2);
-    //     // LCDWriteString(buffer);
-
-    //     // LCDGotoXY(2,3);
-    //     // LCDWriteString("Go back");
-
-    //     // LCDGotoXY(1,caretRow);
-    //     // LCDWriteString(">");
-    //     // if ((!select_pressed())&&(caretRow==3)){
-    //     //     if(up_pressed()){
-    //     //         temp++;
-    //     //     }
-    //     //     else if ((down_pressed())&&(caretRow==2)){
-    //     //         temp--;
-    //     //     }
-    //     //     LCDClearLine(2);
-    //     //     sprintf(buffer, "Set target: %2d", temp);
-    //     //     LCDGotoXY(2, 2);
-    //     //     LCDWriteString(buffer);
-    //     // }
-
-    //     // for(i=1; i<=4; i++){    //clear all rows
-    //     //     LCDClearLine(i);
-    //     // }
-        
-    //     if(down_pressed()&&(caretRow==2)){ // if down pressed and there's still room on menu to go down
-    //         caretRow++;
-    //     }
-    //     if(up_pressed()&&(caretRow==3)){
-    //         caretRow--;
-    //     }
-        
-    //     if((caretRow==3)&&(select_pressed())){
-    //         // go back call menu function
-    //         mainMenu();
-    //         //return; // leave function 
-    //     }
-
-    //     // LCDGotoXY(1,caretRow);
-    //     // LCDWriteString(">");
-
-
-
-
-    // }
+    _delay_ms(500);
 }
 
 void mainMenu(){
@@ -341,12 +348,10 @@ void mainMenu(){
         /*1*/  "  __ deg F IN       ",   
         /*2*/  "  __ deg F OUT      ",
         /*3*/  "  Brighter: [in/out]",
-        /*4*/  "  Set time          ",   //has another screen
-        /*5*/  "  Set target temp   ",
-        /*6*/  "  Set wakeup time   ",      //has another screen
-        /*7*/  "  Set bedtime       ", // Man. toggle window
-        // /*8*/  "  Man. toggle blinds",
-        // /*9*/  "  Man. toggle fan   "
+        /*4*/  "  Set time          ", // calls setTimeScreen()
+        /*5*/  "  Set target temp   ", // calls setTargetTemp()
+        /*6*/  "  Set wakeup time   ", // calls setTimeScreen()
+        /*7*/  "  Set bedtime       ", // calls setTimeScreen() 
     };
     uint8_t numMenuOptions = sizeof(menulist)/sizeof(menulist[0]);    
 
@@ -357,13 +362,12 @@ void mainMenu(){
             for(i = menu_startidx; i<=(menu_startidx+3); i++){  //i is menu index
                 if(i < numMenuOptions){
                     uint8_t row = i - menu_startidx + 1;
-                    LCDGotoXY(1, row);
                     // LCDWriteString(">")
                     if(i == 1){ //menu index 1 is inside temp
-                        sprintf(menulist[i], "  %2d deg F IN       ", get_Temp(1));
+                        sprintf(menulist[i], "  %2d deg F IN       ", get_temp(1));
                     }
                     else if(i == 2){    //menu index 2 is outside temp
-                        sprintf(menulist[i], "  %2d deg F OUT      ", get_Temp(0));
+                        sprintf(menulist[i], "  %2d deg F OUT      ", get_temp(0));
                     }
                     else if(i == 3){    //menu index 3 is brighter: in/out
                         // 0 means same, 1 means inside brighter, -1 means outside brighter
@@ -382,7 +386,7 @@ void mainMenu(){
                             sprintf(menulist[i], "  Brightness: SAME  ");
                         }
                     }
-                    
+                    LCDGotoXY(1, row);
                     LCDWriteString(menulist[i]);
 
                 }
@@ -420,19 +424,21 @@ void mainMenu(){
                     
                 }
                 else if (selectedoption==4){
-
+                    // Curr time
                     setTimeScreen(&hr, &min, &amOrPm);
+                    RTC_Write_Time(hr, min, amOrPm); //initial curr time is 12:00:00
+
                 }
                 else if (selectedoption==5){
                     // set target temp 
-                    setTargetTemp();
+                    //setTargetTemp();
                     // now compare target temp with current temp and decide if to open a window
                 }
                 else if (selectedoption==6){
-                    
+                    setTimeScreen(&wakeup_hr, &wakeup_min, &wakeup_amOrPm);
                 }
                 else if (selectedoption==7){
-                    
+                    setTimeScreen(&bedtime_hr, &bedtime_min, &bedtime_amOrPm);
                 }
                 else if (selectedoption==8){
                     
@@ -441,12 +447,6 @@ void mainMenu(){
                     
                 }
             }
-
-            // if(selectedoption == ){
-            //     // do nothing
-
-            // }
-
             LCDGotoXY(1,caretRow);
             LCDWriteString(">");
         }
