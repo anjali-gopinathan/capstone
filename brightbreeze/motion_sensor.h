@@ -1,14 +1,11 @@
 int check_motion(){
     bool motion_detected = ((PIND & (1 << PD4)));
-    return (int)motion_detected;
-    // if(motion_detected){
-    //     return 1;
-    // }
-
-    // else{
-    //     return 0;
-    // }
-
+    //return (int)motion_detected;
+    if (motion_detected) {
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
 //motion sensor is on pin 6 (PD4)

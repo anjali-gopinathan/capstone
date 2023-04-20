@@ -71,7 +71,6 @@ uint16_t get_light_values(uint16_t channel){
     wp = 0b10110011;    //--this is hex b3
     i2c_io(TSL2591_ADDR, &wp,  1,  NULL,  0, rp, 1);
     while ((rp[0] & 0x01) == 0){ //to check if rp1[0]'s LSB is 1: if(rp1[0] & 0b00000001 == 0)
-        //flash_redled();
         wp = 0b10110011;
         i2c_io(TSL2591_ADDR, &wp,  1,  NULL,  0, rp, 1);
     }

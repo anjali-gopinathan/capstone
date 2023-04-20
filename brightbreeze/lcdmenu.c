@@ -18,12 +18,10 @@
 #include "real_time_clock.h"
 #include "fan.h"
 #include "motion_sensor.h"
+#include "servo_motors.h"
 
-// #define STATE_INIT 0;
-// #define STATE_SCROLL 1;
 // const char* BLANK_20CHAR = "                    ";
 char buffer[20];
-
 
 int hoveredoption = 0;
 int selectedoption = -1;    // selected option = -1 means nothing has been selected
@@ -32,9 +30,6 @@ int caretRow = 1;
 bool menu_is_idle = false;
 uint8_t i;
 uint8_t menu_startidx = 0;
-uint16_t outside_brightness;
-uint16_t inside_brightness;
-int brightness_status;
 
 //for setTimeScreen
 uint8_t hr, min;
@@ -49,6 +44,8 @@ uint8_t target_temp;
 void setTimeScreen( uint8_t *hr, uint8_t *min, char *amOrPm);
 void setTargetTemp();
 void mainMenu();
+void main_state_machine();
+
 
 bool up_pressed ()     { return ((PIND & (1 << 7)) != 0);}
 bool select_pressed () { return ((PINB & (1 << 1)) != 0);}
@@ -58,11 +55,33 @@ void LCDClearLine(uint8_t y){
     LCDWriteString(BLANK_20CHAR);
     LCDGotoXY(1, y);
 }
+
+//for main state machine
+uint16_t motion_time;
+uint16_t time_since_last_moved;
+uint16_t hr_to_min(uint8_t hr, uint8_t min);
+int compareTime( uint8_t hh1, uint8_t mm1, char amOrPm1, uint8_t hh2, uint8_t mm2, char amOrPm2);
+void test_state_machine();
+
+
 int main(void)
 {
      
-    temp_sensor_init();
+    //initialize all sensors
     light_sensor_init();
+    motion_sensor_init();
+    temp_sensor_init();
+    servo1__timer0_init();
+    servo2__timer2_init();
+    fan_init();
+
+    //setting all sensors to starting state
+    //turn_led_off();
+    fan_off();
+    change_windows_timer2(0);
+    change_blinds_timer0(0);
+    motion_time = 0;
+    time_since_last_moved = 0;
 
     //for Real Time Clock
     i2c_init(BDIV);
@@ -73,10 +92,14 @@ int main(void)
     hr = bcd2decimal((hour & 0b00011111));
     min = bcd2decimal(minute);
     if (hour & TimeFormat12){
-        if(IsItPM(hour)) amOrPm = 'P';
-        else amOrPm = 'A';
+        if(IsItPM(hour)) {
+            amOrPm = 'P';
+        }
+        else {
+            amOrPm = 'A';
+        }
     }
-    else{amOrPm='A';}   //hardcoded to AM
+    else{amOrPm='_';}   //hardcoded to AM
     
     bedtime_hr = hr;
     bedtime_min = min;
@@ -97,8 +120,10 @@ int main(void)
     LCDHome();
 
     while(1){
-        mainMenu();
+       // mainMenu();
         // standard state machine for adjusting blinds and windows here
+        test_state_machine();
+       // main_state_machine();
         _delay_ms(1000);
     }
     return 0;   /* never reached */
@@ -152,7 +177,7 @@ void setTimeScreen( uint8_t *hr, uint8_t *min, char *amOrPm){  //1002 maybe chan
         LCDWriteString(">");
         
         if(setTime_caretRow == 2){
-            _delay_ms(1000);
+            _delay_ms(400);
             if(down_pressed()){ // if down pressed and there's still room on menu to go down
                 setTime_caretRow++;
                 LCDGotoXY(1,setTime_caretRow-1);
@@ -165,7 +190,7 @@ void setTimeScreen( uint8_t *hr, uint8_t *min, char *amOrPm){  //1002 maybe chan
         }
         
         else if(setTime_caretRow == 3){
-            _delay_ms(1000);
+            _delay_ms(200);
             if(up_pressed()){
                 setTime_caretRow--;
                 LCDGotoXY(1,setTime_caretRow+1);
@@ -181,7 +206,7 @@ void setTimeScreen( uint8_t *hr, uint8_t *min, char *amOrPm){  //1002 maybe chan
         }
 
         while(settingTime){
-            _delay_ms(1000);
+            _delay_ms(200);
 
             // update set time on second row
             sprintf(buffer, "  Set time:  %02u:%02u%cM", hr_userSet, min_userSet, amOrPm_userSet);
@@ -248,9 +273,8 @@ void setTimeScreen( uint8_t *hr, uint8_t *min, char *amOrPm){  //1002 maybe chan
 
     }
 
-    _delay_ms(500);
+    _delay_ms(200);
 }
-
 
 void setTargetTemp(){
     LCDClear();
@@ -269,14 +293,13 @@ void setTargetTemp(){
     LCDGotoXY(1,3);
     LCDWriteString("  Go back           ");
 
-    // bool isRunning = true;
     while(1){
         //update caret print
         LCDGotoXY(1,setTime_caretRow);
         LCDWriteString(">");
         
         if(setTime_caretRow == 2){
-            _delay_ms(1000);
+            _delay_ms(200);
             if(down_pressed()){ // if down pressed and there's still room on menu to go down
                 LCDGotoXY(1,setTime_caretRow);
                 LCDWriteString(" ");
@@ -288,7 +311,7 @@ void setTargetTemp(){
         }
         
         else if(setTime_caretRow == 3){
-            _delay_ms(1000);
+            _delay_ms(200);
             if(up_pressed()){
                 setTime_caretRow--;
                 LCDGotoXY(1,setTime_caretRow+1);
@@ -303,7 +326,7 @@ void setTargetTemp(){
         }
 
         while(settingTemp){
-            _delay_ms(1000);
+            _delay_ms(200);
 
             // update set temp on second row
             sprintf(buffer, "  Target temp: %02u", target_temp);
@@ -326,7 +349,6 @@ void setTargetTemp(){
 
     }
 
-    _delay_ms(500);
 }
 
 
@@ -362,9 +384,9 @@ void mainMenu(){
                         // 0 means same, 1 means inside brighter, -1 means outside brighter
 
                         //channel 0 is outside, channel 1 is inside
-                        outside_brightness= get_light_values(0);
-                        inside_brightness= get_light_values(1);
-                        brightness_status = get_lightStatus(outside_brightness, inside_brightness);
+                        uint16_t outside_brightness= get_light_values(0);
+                        uint16_t inside_brightness= get_light_values(1);
+                        uint16_t brightness_status = get_lightStatus(outside_brightness, inside_brightness);
                         if(brightness_status == 1){
                             sprintf(menulist[i], "  Brighter: IN      ");
                         }
@@ -422,7 +444,7 @@ void mainMenu(){
                         if(IsItPM(hour)) amOrPm = 'P';
                         else amOrPm = 'A';
                     }
-                    else{amOrPm='A';}   //hardcoded to AM
+                    else{amOrPm='_';}   //hardcoded to AM
 
                     //call setTimeScreen 
                     setTimeScreen(&hr, &min, &amOrPm);
@@ -454,3 +476,229 @@ void mainMenu(){
     //  }
 }
 
+
+// void turn_led_on(){
+//     PORTB |= (1 << PB6);   // Set PC0 to a 1
+//     // _delay_ms(100);
+
+// }
+
+// void turn_led_off(){
+//     PORTB &= ~(1 << PB6);   // Set PC0 to a 0
+//     // _delay_ms(100);
+// }
+
+uint16_t hr_to_min(uint8_t hr, uint8_t min){
+    return (hr*60 + min);
+}
+//returns  -1 if t1 is earlier than t2, 
+//          0 if they're the same, 
+//          1 if t1 is later than t2
+int compareTime(   uint8_t hh1, 
+                        uint8_t mm1, 
+                        char amOrPm1,
+                        uint8_t hh2, 
+                        uint8_t mm2, 
+                        char amOrPm2
+                    ){   
+    
+    uint16_t time1_min = hr_to_min(hh1, mm1);
+    uint16_t time2_min = hr_to_min(hh2, mm2);
+    
+    if(amOrPm1 == 'P'){
+        time1_min += 720;   //720 min is 12 hours
+    }
+    if(amOrPm2 == 'P'){
+        time2_min += 720;
+    }
+
+    if(time1_min > time2_min ){     //time1 later than time2
+        return 1;
+    }
+    else if (time1_min < time2_min) {   //time1 earlier than time2
+        return -1;   
+    }
+    else{   //exact same hr and min
+        return 0;
+    }
+}
+
+void main_state_machine(){
+    //channel 0 is outside, channel 1 is inside
+    uint16_t outside_brightness= get_light_values(0);
+    uint16_t inside_brightness= get_light_values(1);
+
+    // 0 means same, 1 means inside brighter, -1 means outside brighter
+    int brightness_status = get_lightStatus(outside_brightness, inside_brightness);
+
+    uint8_t inside_temp = get_Temp(1);
+    uint8_t outside_temp = get_Temp(0);
+
+
+    uint8_t curr_hr, curr_min;
+    char curr_amOrPm;
+
+    RTC_Read_Clock(0);
+    curr_hr = bcd2decimal((hour & 0b00011111));
+    curr_min = bcd2decimal(minute);
+    if (hour & TimeFormat12){
+        if(IsItPM(hour)) curr_amOrPm = 'P';
+        else curr_amOrPm = 'A';
+    }
+    else{curr_amOrPm='_';}   //hardcoded to _M
+    
+    //need to set sunset time: 7:00 PM
+    //turn on light if it's (dark outside or it's after sunset) and there's motion inside recently ie people are home and awake
+    // bool light_on_condition = (((brightness_status != -1) || (curr_time >= sunset_time)) 
+    bool light_on_condition = (((brightness_status != -1) || (compareTime(curr_hr, curr_min, curr_amOrPm, 7, 0, 'P') == 1)  )
+                                && (motion_time <= 30));
+    
+    // need to set the time variables
+    // after bedtime and before wake up time
+   // bool end_of_day_condition = ((start_time > curr_time) && (end_time < curr_time));
+    bool end_of_day_condition = ((compareTime(curr_hr, curr_min, curr_amOrPm, wakeup_hr, wakeup_min, wakeup_amOrPm) == -1) 
+                                    && (compareTime(curr_hr, curr_min, curr_amOrPm, bedtime_hr, bedtime_min, bedtime_amOrPm) == 1) );
+
+    bool motion = check_motion();
+
+    bool fan_on_condition = ((inside_temp >= 80) && (outside_temp >= 80) && (motion_time <= 30));
+    
+
+    //check if it's end of day
+    if(end_of_day_condition){
+        fan_off();
+        //0 means close window
+        change_windows_timer2(0);
+        change_blinds_timer0(0);
+       // turn_led_off();
+        motion_time = 0;
+
+    }
+
+    //if its not the end of the day, enter checking state
+    else{
+        
+        //check if theres motion
+        if(motion){
+            time_since_last_moved = hr_to_min(curr_hr, curr_min);
+            motion_time = 0;
+        }
+
+        else{
+            motion_time = time_since_last_moved - hr_to_min(curr_hr, curr_min);
+            
+        }
+        
+        //check if we should turn fan on
+        if(fan_on_condition){
+            fan_on();
+            //0 means close window
+            change_windows_timer2(0);
+        }
+
+        //check if we should turn fan off
+        else if(!fan_on_condition){
+            fan_off();
+
+            //check if we should open windows instead
+            if((outside_temp < inside_temp) && (motion_time <= 30) && (outside_temp >=65)){
+                change_windows_timer2(1);
+            }
+        }
+
+        //check if we should turn light on
+        //need to set curr_time and sunset_time
+        if(light_on_condition){
+            //turn_led_on();
+            change_blinds_timer0(0);
+        }
+
+        //check if we should turn light off
+        else if(!light_on_condition){
+            //turn_led_off();
+
+            if((brightness_status == -1) && (motion_time <= 30)){
+                change_blinds_timer0(1);
+            }
+        }
+
+    }
+
+}
+
+
+void test_state_machine(){
+   //hardcode the times we want to test
+    wakeup_hr = 5;
+    wakeup_min = 0;
+    wakeup_amOrPm = 'A';
+   
+    bedtime_hr = 10;
+    bedtime_min = 0;
+    bedtime_amOrPm = 'P';
+
+    hr = 3;
+    min = 0;
+    amOrPm = 'P';
+
+    //channel 0 is outside, channel 1 is inside
+    uint16_t outside_brightness= get_light_values(0);
+    uint16_t inside_brightness= get_light_values(1);
+    uint16_t brightness_status = get_lightStatus(outside_brightness, inside_brightness);
+    LCDGotoXY(1,1);
+    if(brightness_status == 1){
+        LCDWriteString("  Brighter: IN      ");
+    }
+    else if(brightness_status == -1){
+         LCDWriteString("  Brighter: OUT     ");
+    }
+    else {//if(brightness_status == 0){
+        LCDWriteString("  Brighter: SAME    ");
+    }
+
+    LCDGotoXY(1,2);
+    LCDWriteString("Inside Temp: ");
+    LCDWriteInt(get_Temp(0),2);
+
+    LCDGotoXY(1,3);
+    LCDWriteString("Outside Temp: ");
+    LCDWriteInt(get_Temp(1),2);
+
+    bool motion = check_motion();
+
+    if(motion){
+        LCDGotoXY(1,4);
+        LCDWriteString("Motion              ");
+        fan_on();
+        _delay_ms(5000);
+
+    }
+    else{
+        LCDGotoXY(1,4);
+        LCDWriteString("NO Motion           ");
+        fan_off();
+        _delay_ms(5000);
+    }
+    //  bool end_of_day_condition = ((compareTime(hr, min, amOrPm, wakeup_hr, wakeup_min, wakeup_amOrPm) == -1) 
+    //                                 && (compareTime(hr, min, amOrPm, bedtime_hr, bedtime_min, bedtime_amOrPm) == 1) );
+
+      //check if it's end of day
+    // if(!motion){
+    //     fan_off();
+    //     change_windows_timer2(0);
+    //     change_blinds_timer0(0);
+    //     //motion_time = 0;
+
+    // }
+
+    // //if its not the end of the day, enter checking state
+    // else{
+    //     fan_on();
+    //     change_windows_timer2(1);
+    //     change_blinds_timer0(1);
+        
+
+    // }
+
+
+}

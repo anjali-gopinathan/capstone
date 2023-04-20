@@ -13,11 +13,9 @@ void fan_init(){
 
 void fan_on(){
     PORTB |= 1 << PB7;      // Set PB7 to a 1 (on)
-    _delay_ms(5000);
 
 } 
 
 void fan_off(){
     PORTB &= ~(1 << PB7);   // Set PB7 to a 0
-    _delay_ms(5000);
 }
