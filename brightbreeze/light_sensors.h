@@ -18,8 +18,6 @@ void select_lightsensor(uint16_t channel){
 }
 
 void light_sensor_init(){
-    i2c_init(BDIV);             // Initialize the I2C port   
-
     uint16_t i;
     uint8_t wp;
     uint8_t wp2;
