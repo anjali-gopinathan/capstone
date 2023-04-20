@@ -136,7 +136,7 @@ int main(void)
         // update_buttonless_time();
         // update_motion_time();
         // if(motionless_time <=5){    // if motion detected in last 5 minutes
-        if(buttonless_time <=5){    // if button pressed in last 5 minutes
+        if(buttonless_time <=5){    // if button pressed in last 5 minutes ()
             mainMenu();
         }
         /* main_state_machine() is the standard state machine for adjusting blinds, windows, and fan*/
@@ -439,16 +439,7 @@ void mainMenu(){
     else if(select_pressed()){
         selectedoption = hoveredoption;
         // call function for each option
-        if (selectedoption==1){
-            
-        }
-        else if (selectedoption==2){
-
-        }
-        else if (selectedoption==3){
-            
-        }
-        else if (selectedoption==4){
+        if (selectedoption==4){
             //here 
             
             RTC_Read_Clock(0);
@@ -474,12 +465,6 @@ void mainMenu(){
         }
         else if (selectedoption==7){
             setTimeScreen(&bedtime_hr, &bedtime_min, &bedtime_amOrPm);  
-        }
-        else if (selectedoption==8){
-            
-        }
-        else if (selectedoption==9){
-            
         }
     }
     LCDGotoXY(1,caretRow);
@@ -542,7 +527,6 @@ void main_state_machine(){
     //channel 0 is outside, channel 1 is inside
     uint16_t outside_brightness= get_light_values(0);
     uint16_t inside_brightness= get_light_values(1);
-
     // 0 means same, 1 means inside brighter, -1 means outside brighter
     int brightness_status = get_lightStatus(outside_brightness, inside_brightness);
 
@@ -634,11 +618,8 @@ void main_state_machine(){
                 change_blinds_timer0(1);
             }
         }
-
     }
-
 }
-
 
 void test_state_machine(){
    //hardcode the times we want to test
