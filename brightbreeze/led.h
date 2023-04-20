@@ -12,3 +12,9 @@ void led_on(){
 void led_off(){
     PORTB &= ~(1 << PB4);   // Set PB4 to a 0
 }
+
+// void led_blink(){
+//     PORTB |= 1 << PB4;      // Set PB4 to a 1 (on)
+//     _delay_ms(10);
+//     PORTB &= ~(1 << PB4);   // Set PB4 to a 0
+// }

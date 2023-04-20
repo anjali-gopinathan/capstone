@@ -26,7 +26,7 @@ uint8_t decimal2bcd(uint8_t t) {
     uint8_t i = (t / 10) * 16 + (t % 10);
     return i;
 }
-void RTC_Read_Clock(uint8_t read_clock_address)
+void RTC_Read_Clock(uint8_t read_clock_address, char *amOrPm)
 {
     uint8_t read_data[3];
 
@@ -36,8 +36,17 @@ void RTC_Read_Clock(uint8_t read_clock_address)
     second = read_data[0];
     minute = read_data[1];
     hour = read_data[2];
+
+    if(hour == 12){
+        if(*amOrPm == 'P'){
+            *amOrPm = 'A';
+        }
+        else{
+            *amOrPm = 'P';
+        }
+    }
 }
-void RTC_Write_Time(uint8_t hh, uint8_t mm, uint8_t ss){
+void RTC_Write_Time(uint8_t hh, uint8_t mm, uint8_t ss ){
     uint8_t write_data[4];
     write_data[0] = 0x00; // Start from address 0x00 (seconds)
     write_data[1] = decimal2bcd(ss);
