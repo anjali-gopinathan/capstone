@@ -87,7 +87,7 @@ uint16_t timestamp_of_last_motion;
 
 void update_buttonless_time();
 uint16_t buttonless_time=0;
-uint16_t timestamp_of_last_buttonpress;
+uint16_t timestamp_of_last_buttonpress=0;
 
 
 int main(void)
@@ -141,7 +141,7 @@ int main(void)
 
     while(1){
         /* mainMenu() is the screen that displays the current temperatures inside and outside  */
-        // update_buttonless_time();
+        update_buttonless_time();
         // update_motion_time();
         // if(motionless_time <=5){    // if motion detected in last 5 minutes
         // if(buttonless_time <=5){    // if button pressed in last 5 minutes ()
@@ -160,7 +160,6 @@ int main(void)
         if(up_pressed() || down_pressed() || select_pressed()){
             menu_activated = true;
         }
-
         else if(buttonless_time > 2){
             menu_activated = false;
         }
@@ -169,10 +168,9 @@ int main(void)
             mainMenu(&brightness_status, &inside_temp, &outside_temp);
         }
         else{
-            main_state_machine(&brightness_status, &inside_temp, &outside_temp);
+            LCDClear();
         }
-
-       
+        main_state_machine(&brightness_status, &inside_temp, &outside_temp);
         _delay_ms(1000);
     }
     return 0;   /* never reached */
@@ -457,12 +455,6 @@ void mainMenu(int *brightness_status, uint8_t *inside_temp, uint8_t *outside_tem
             RTC_Read_Clock(0, &amOrPm);
             hr = bcd2decimal((hour & 0b00011111));
             min = bcd2decimal(minute);
-          //  if (hour & TimeFormat12){
-                // if(IsItPM(hour)) amOrPm = 'P';
-                // else amOrPm = 'A';
-           // }
-           // else{amOrPm='_';}   //hardcoded to AM
-
             //call setTimeScreen 
             setTimeScreen(&hr, &min, &amOrPm);
             RTC_Write_Time(hr, min, 0);
@@ -489,7 +481,7 @@ void update_motion_time(){
         motionless_time = 0;
     }
     else{
-        motionless_time = timestamp_of_last_motion - hr_to_min(curr_hr, curr_min);  
+        motionless_time = hr_to_min(curr_hr, curr_min) - timestamp_of_last_motion;  
     }
 }
 void update_buttonless_time(){
@@ -498,7 +490,7 @@ void update_buttonless_time(){
         buttonless_time = 0;
     }
     else{
-        buttonless_time = timestamp_of_last_buttonpress - hr_to_min(curr_hr, curr_min);  
+        buttonless_time = hr_to_min(curr_hr, curr_min) - timestamp_of_last_buttonpress;  
     }
 }
 uint16_t hr_to_min(uint8_t hr, uint8_t min){
@@ -537,23 +529,29 @@ int compareTime(   uint8_t hh1,
 }
 
 void main_state_machine(int *brightness_status, uint8_t *inside_temp, uint8_t *outside_temp){
-    // led_on();
 
     RTC_Read_Clock(0, &amOrPm);
     curr_hr = bcd2decimal((hour & 0b00011111));
     curr_min = bcd2decimal(minute);
-  //  if (hour & TimeFormat12){
-        // if(IsItPM(hour)) curr_amOrPm = 'P';
-        // else curr_amOrPm = 'A';
-   // }
-   // else{curr_amOrPm='_';}   //hardcoded to _M
-    
-    // led_off();
+
+    //hardcode the times we want to test
+    wakeup_hr = 5;
+    wakeup_min = 0;
+    wakeup_amOrPm = 'A';
+   
+    bedtime_hr = 10;
+    bedtime_min = 0;
+    bedtime_amOrPm = 'P';
+
+    curr_hr = 3;
+    curr_min = 0;
+    curr_amOrPm = 'P';
+
     
     //turn on light if it's (dark outside or it's after sunset) and there's motion inside recently ie people are home and awake
     //sunset time: 7:00 PM
     bool light_on_condition = (((*brightness_status != -1) || (compareTime(curr_hr, curr_min, curr_amOrPm, 7, 0, 'P') == 1)  )
-                                && (motionless_time <= 30));
+                                && (motionless_time <= 3));
     
     // need to set the time variables
     // after bedtime and before wake up time
@@ -563,8 +561,8 @@ void main_state_machine(int *brightness_status, uint8_t *inside_temp, uint8_t *o
 
     bool motion = check_motion();
 
-    // bool fan_on_condition = ((*inside_temp >= 80) && (*outside_temp >= 80) && (motionless_time <= 30));
-    bool fan_on_condition = ((*inside_temp >= 60) && (*outside_temp >= 60) && (motionless_time <= 30));
+    bool fan_on_condition = ((*inside_temp >= 80) && (*outside_temp >= 80) && (motionless_time <= 30));
+    // bool fan_on_condition = ((*inside_temp >= 60) && (*outside_temp >= 60) && (motionless_time <= 3));
     
 
     //check if it's end of day
