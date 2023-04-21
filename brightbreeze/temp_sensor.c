@@ -89,7 +89,7 @@ uint8_t Receive_data(uint8_t location)			/* receive data */
 }
 
 
- // location = 0 means outside sensor which is on portD and location=1 means inside sensor which is portB
+// location = 0 means outside sensor which is on portD and location=1 means inside sensor which is portB
 uint8_t get_Temp(uint8_t location){
     Request(location);		/* send start pulse */
     Response(location);		/* receive response */
