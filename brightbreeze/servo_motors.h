@@ -10,8 +10,8 @@ const uint8_t SERVO_DELAY = 100;
 void change_blinds(uint8_t direction);      // direction = 1: open, direction = -1: close
 void change_windows(uint8_t direction);     // direction = 1: open, direction = -1: close
 
-void change_blinds_timer0(uint8_t direction);  
-void change_windows_timer2(uint8_t direction);  
+void change_blinds_timer0(uint8_t direction, bool *is_blind_open);  
+void change_windows_timer2(uint8_t direction, bool *is_window_open);  
 
 void servo1__timer0_init();
 void servo2__timer2_init();
@@ -48,39 +48,46 @@ void servo2__timer2_init(){
     TCCR2B &= ~(1 << CS20); //0    
 }
 
-void change_blinds_timer0(uint8_t direction){
+void change_blinds_timer0(uint8_t direction, bool *is_blind_open){
     uint8_t pulse_width;
 
-    if(direction == 1){ //open blinds
+    if((direction == 1) && (*is_blind_open == false)){ //open blinds
         // Move the servo from left to right
         for (pulse_width = PULSE_MIN; pulse_width <= PULSE_MAX; pulse_width += 1) {
             OCR0B = pulse_width;
             _delay_ms(SERVO_DELAY);
         }
+        *is_blind_open = true;
     }
-    else{   //close blinds
+    else if ((direction == 0) && (*is_blind_open == true)){   //close blinds
         // Move the servo from right to left
         for (pulse_width = PULSE_MAX; pulse_width >= PULSE_MIN; pulse_width -= 1) {
             OCR0B = pulse_width;
             _delay_ms(SERVO_DELAY);
         }
+        *is_blind_open = false;
     }
 }
-void change_windows_timer2(uint8_t direction){
+
+
+void change_windows_timer2(uint8_t direction, bool *is_window_open){
     uint8_t pulse_width;
 
-    if(direction == 1){ //open blinds
+    if((direction == 1) && (*is_window_open == false)){ //open window
         // Move the servo from left to right
         for (pulse_width = PULSE_MIN; pulse_width <= PULSE_MAX; pulse_width += 1) {
             OCR2B = pulse_width;
             _delay_ms(SERVO_DELAY);
         }
+        *is_window_open = true;
     }
-    else{   //close blinds
+    else if ((direction == 0) && (*is_window_open == true)){   //close blinds
         // Move the servo from right to left
         for (pulse_width = PULSE_MAX; pulse_width >= PULSE_MIN; pulse_width -= 1) {
             OCR2B = pulse_width;
             _delay_ms(SERVO_DELAY);
         }
+        *is_window_open = false;
+
     }
 }
