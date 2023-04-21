@@ -89,7 +89,7 @@ void update_buttonless_time();
 uint16_t buttonless_time=0;
 uint16_t timestamp_of_last_buttonpress=0;
 
-
+void splashScreen(bool enabled);
 int main(void)
 {
     
@@ -139,6 +139,8 @@ int main(void)
     LCDClear();
     LCDHome();
 
+    splashScreen(true);
+
     while(1){
         /* mainMenu() is the screen that displays the current temperatures inside and outside  */
         update_buttonless_time();
@@ -174,6 +176,15 @@ int main(void)
         _delay_ms(500);
     }
     return 0;   /* never reached */
+}
+void splashScreen(bool enabled){
+    if(enabled){
+        LCDClear();
+        LCDWriteStringXY(1, 1, "    Welcome t ");
+        LCDWriteStringXY(1, 2, "    BrightBreeze                ");
+        LCDWriteStringXY(1, 3, "                    ");
+        LCDWriteStringXY(1, 4, "                    ");
+    }
 }
 
 void setTimeScreen( uint8_t *hr, uint8_t *min, char *amOrPm){  //1002 maybe change
