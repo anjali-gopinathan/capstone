@@ -171,7 +171,7 @@ int main(void)
             LCDClear();
         }
         main_state_machine(&brightness_status, &inside_temp, &outside_temp);
-        _delay_ms(1000);
+        _delay_ms(500);
     }
     return 0;   /* never reached */
 }
@@ -224,7 +224,7 @@ void setTimeScreen( uint8_t *hr, uint8_t *min, char *amOrPm){  //1002 maybe chan
         LCDWriteString(">");
         
         if(setTime_caretRow == 2){
-            _delay_ms(400);
+            _delay_ms(50);
             if(down_pressed()){ // if down pressed and there's still room on menu to go down
                 setTime_caretRow++;
                 LCDGotoXY(1,setTime_caretRow-1);
@@ -237,7 +237,7 @@ void setTimeScreen( uint8_t *hr, uint8_t *min, char *amOrPm){  //1002 maybe chan
         }
         
         else if(setTime_caretRow == 3){
-            _delay_ms(200);
+            _delay_ms(50);
             if(up_pressed()){
                 setTime_caretRow--;
                 LCDGotoXY(1,setTime_caretRow+1);
@@ -253,7 +253,7 @@ void setTimeScreen( uint8_t *hr, uint8_t *min, char *amOrPm){  //1002 maybe chan
         }
 
         while(settingTime){
-            _delay_ms(200);
+            _delay_ms(50);
 
             // update set time on second row
             sprintf(buffer, "  Set time:  %02u:%02u%cM", hr_userSet, min_userSet, amOrPm_userSet);
@@ -346,7 +346,7 @@ void setTargetTemp(){
         LCDWriteString(">");
         
         if(setTime_caretRow == 2){
-            _delay_ms(200);
+            _delay_ms(50);
             if(down_pressed()){ // if down pressed and there's still room on menu to go down
                 LCDGotoXY(1,setTime_caretRow);
                 LCDWriteString(" ");
@@ -358,7 +358,7 @@ void setTargetTemp(){
         }
         
         else if(setTime_caretRow == 3){
-            _delay_ms(200);
+            _delay_ms(50);
             if(up_pressed()){
                 setTime_caretRow--;
                 LCDGotoXY(1,setTime_caretRow+1);
@@ -373,10 +373,10 @@ void setTargetTemp(){
         }
 
         while(settingTemp){
-            _delay_ms(200);
+            _delay_ms(50);
 
             // update set temp on second row
-            sprintf(buffer, "  Target temp: %02u", target_temp);
+            sprintf(buffer, "  Target temp: %02u   ", target_temp);
             LCDGotoXY(1,2);
             LCDWriteString(buffer);
 
@@ -494,18 +494,18 @@ void update_buttonless_time(){
     }
 }
 uint16_t hr_to_min(uint8_t hr, uint8_t min){
-    return (hr*60 + min);
+    return ((uint16_t)(hr)*60 + (uint16_t)(min));
 }
 //returns  -1 if t1 is earlier than t2, 
 //          0 if they're the same, 
 //          1 if t1 is later than t2
-int compareTime(   uint8_t hh1, 
-                        uint8_t mm1, 
-                        char amOrPm1,
-                        uint8_t hh2, 
-                        uint8_t mm2, 
-                        char amOrPm2
-                    ){   
+int compareTime(    uint8_t hh1, 
+                    uint8_t mm1, 
+                    char amOrPm1,
+                    uint8_t hh2, 
+                    uint8_t mm2, 
+                    char amOrPm2
+                ){   
     
     uint16_t time1_min = hr_to_min(hh1, mm1);
     uint16_t time2_min = hr_to_min(hh2, mm2);
@@ -545,7 +545,7 @@ void main_state_machine(int *brightness_status, uint8_t *inside_temp, uint8_t *o
 
     curr_hr = 3;
     curr_min = 0;
-    curr_amOrPm = 'P';
+    curr_amOrPm = 'A';
 
     
     //turn on light if it's (dark outside or it's after sunset) and there's motion inside recently ie people are home and awake
@@ -556,9 +556,24 @@ void main_state_machine(int *brightness_status, uint8_t *inside_temp, uint8_t *o
     // need to set the time variables
     // after bedtime and before wake up time
 // bool end_of_day_condition = ((start_time > curr_time) && (end_time < curr_time));
-    bool end_of_day_condition = (   (compareTime(curr_hr, curr_min, curr_amOrPm, wakeup_hr,  wakeup_min,  wakeup_amOrPm ) == -1) 
-                                &&  (compareTime(curr_hr, curr_min, curr_amOrPm, bedtime_hr, bedtime_min, bedtime_amOrPm) ==  1) );
 
+    // it is end of day if current time is (past bedtime and before midnight) or (after midnight and before wakeup time)
+    bool end_of_day_condition = (   compareTime(curr_hr, curr_min, curr_amOrPm, bedtime_hr, bedtime_min, bedtime_amOrPm) == 1   //after bedtime and before midnight chunk
+                                &&  compareTime(curr_hr, curr_min, curr_amOrPm, 11, 59, 'P') == -1)
+                            ||  (   compareTime(curr_hr, curr_min, curr_amOrPm, 0, 0, 'A') == 1     //after midnight and before wakeup chunk
+                                &&  compareTime(curr_hr, curr_min, curr_amOrPm, wakeup_hr, wakeup_min, wakeup_amOrPm) == -1
+                                );
+
+
+    // bool end_of_day_condition = ((      (compareTime(curr_hr, curr_min, curr_amOrPm, 11,  59,  'P' ) == -1)                    // A curr time is before midnight 
+    //                                 ||  (compareTime(curr_hr, curr_min, curr_amOrPm, wakeup_hr, wakeup_min, wakeup_amOrPm) ==  1   )              // B curr time is after midnight
+    //                             )
+    //                         &&  (       (compareTime(curr_hr, curr_min, curr_amOrPm, bedtime_hr, bedtime_min, bedtime_amOrPm) ==  1)    // C
+    //                                 ||  (compareTime() ==  )    // D
+    //                             )
+    //                             );
+
+        
     bool motion = check_motion();
 
     bool fan_on_condition = ((*inside_temp >= 80) && (*outside_temp >= 80) && (motionless_time <= 30));

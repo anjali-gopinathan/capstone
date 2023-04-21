@@ -10,7 +10,7 @@ void led_on(){
     PORTB |= 1 << PB4;      // Set PB4 to a 1 (on)
 } 
 void led_off(){
-    PORTB &= ~(1 << PB4);   // Set PB4 to a 0
+    PORTB &= ~(1 << PB4);   // Set PB4 to a 0   
 }
 
 // void led_blink(){
